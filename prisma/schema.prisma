@@ -42,18 +42,492 @@ model User {
 
   // Distinction fondamentale entre un client et un membre du personnel
   // 'CLIENT' ou 'PERSONNEL' doit être une chaîne de caractères correspondant à une valeur de l'enum
-  type UserType @default(CLIENT) 
+  type UserType @default(CLIENT)
 
   // Statut d'activation du compte
-  status UserStatus @default(ACTIVE) 
+  status UserStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relation avec les demandes qu'un utilisateur a soumises (principalement pour les CLIENTS)
-  // requests    Request[] 
+  requests Request[]
 
   // Relations pour le CMS (principalement pour le PERSONNEL)
   // news        News[]    @relation("AuthorNews")
   // events      Event[]   @relation("AuthorEvent")
+  documents     Document[]
+  statusHistory RequestStatusHistory[]
+  Payment       Payment[]
+}
+
+// Enum pour les types de services/demandes
+enum ServiceType {
+  VISA
+  BIRTH_ACT_APPLICATION // Demande d'acte de naissance
+  CONSULAR_CARD // Demande de carte consulaire
+  LAISSEZ_PASSER // Demande de laissez-passer
+  MARRIAGE_CAPACITY_ACT // Demande d'acte de capacité de mariage
+  DEATH_ACT_APPLICATION // Demande d'acte de décès
+  POWER_OF_ATTORNEY // Demande de procuration
+  NATIONALITY_CERTIFICATE // Demande de certificat de nationalité
+}
+
+// Enum pour les statuts de la demande
+enum RequestStatus {
+  NEW // Nouvelle demande soumise
+  IN_REVIEW_DOCS // En cours de vérification des documents (par l'agent)
+  PENDING_ADDITIONAL_INFO // En attente d'informations ou de documents complémentaires du client
+  APPROVED_BY_AGENT // Approuvé par l'agent (prêt pour le chef de service)
+  APPROVED_BY_CHEF // Approuvé par le chef de service (prêt pour le consul/délivrance)
+  APPROVED_BY_CONSUL // Approuvé par le consul (décision finale d'approbation)
+  REJECTED // Demande rejetée
+  READY_FOR_PICKUP // Document prêt à être retiré
+  DELIVERED // Document délivré
+  ARCHIVED // Demande archivée (après délivrance ou rejet)
+  EXPIRED // Pour les visas expirés ou autres services à durée limitée
+  RENEWAL_REQUESTED // Demande de renouvellement soumise (si applicable)
+}
+
+model Request {
+  id String @id @default(uuid())
+
+  // Numéro de ticket unique pour le suivi par le client
+  ticketNumber String @unique
+
+  // Lien vers l'utilisateur (client) qui a soumis la demande
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Type de demande (Visa, Acte de Naissance, etc.)
+  serviceType ServiceType
+
+  // Statut actuel de la demande
+  status RequestStatus @default(NEW)
+
+  // Date de soumission de la demande
+  submissionDate DateTime @default(now())
+
+  // Date de dernière mise à jour du statut
+  updatedAt DateTime @updatedAt
+
+  // Date de finalisation de la demande (approbation, rejet, délivrance)
+  completionDate DateTime?
+
+  // NOUVEAU CHAMP : Date à laquelle le document résultant de la demande a été délivré
+  issuedDate DateTime? // Optionnel, car une demande peut être rejetée sans délivrance
+
+  // Champ pour des observations internes par le personnel de l'ambassade
+  observations String? @db.Text
+
+  // Coût de la demande au moment de la soumission (pour la traçabilité financière)
+  amount Float
+
+  // Relations
+  documents     Document[]
+  statusHistory RequestStatusHistory[]
+  // payment        Payment? 
+
+  // Relations vers les modèles de détails spécifiques (la expirationDate sera dedans)
+  visaDetails                   VisaRequestDetails?
+  birthActDetails               BirthActRequestDetails?
+  consularCardDetails           ConsularCardRequestDetails?
+  laissezPasserDetails          LaissezPasserRequestDetails?
+  marriageCapacityActDetails    MarriageCapacityActRequestDetails?
+  deathActDetails               DeathActRequestDetails?
+  powerOfAttorneyDetails        PowerOfAttorneyRequestDetails?
+  nationalityCertificateDetails NationalityCertificateRequestDetails?
+  Payment                       Payment?
+}
+
+model Document {
+  id String @id @default(uuid())
+
+  // Nom original du fichier (tel que téléchargé par l'utilisateur)
+  fileName String
+
+  // Type MIME du fichier (ex: image/jpeg, application/pdf)
+  mimeType String
+
+  // Chemin de stockage ou URL du fichier (ex: sur S3, Google Cloud Storage, ou dossier local si petit projet)
+  filePath String
+
+  // Taille du fichier en octets
+  fileSizeKB Int // Taille en Kilobytes
+
+  // Lien vers la demande à laquelle ce document est attaché
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Qui a téléchargé/ajouté ce document (un client ou un agent)
+  uploaderId String?
+  uploader   User?   @relation(fields: [uploaderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RequestStatusHistory {
+  id String @id @default(uuid())
+
+  // Lien vers la demande concernée
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Ancien statut de la demande
+  oldStatus RequestStatus? // Peut être null si c'est le tout premier statut (NEW)
+
+  // Nouveau statut de la demande
+  newStatus RequestStatus
+
+  // Qui a effectué le changement de statut (agent, chef de service, admin)
+  // C'est important pour la traçabilité des actions du personnel
+  changerId String
+  changer   User   @relation(fields: [changerId], references: [id])
+
+  // Date et heure du changement de statut
+  changedAt DateTime @default(now())
+
+  // Raison du changement (optionnel, ex: "Documents validés", "Manque pièce d'identité")
+  reason String? @db.Text
+}
+
+// Enum pour les méthodes de paiement
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY // Ex: MTN MoMo, Orange Money, Moov Money
+  BANK_TRANSFER
+  CREDIT_CARD
+  OTHER
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  requestId String  @unique // @unique car 1-à-1 avec Request (pour l'instant)
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Montant du paiement
+  amount Float
+
+  // Date du paiement
+  paymentDate DateTime @default(now())
+
+  // Méthode de paiement (Cash, Mobile Money, Virement Bancaire, Carte Bancaire)
+  method PaymentMethod
+
+  // Référence de transaction (pour les paiements électroniques)
+  transactionRef String? @unique // Peut être null pour le cash
+
+  // Qui a enregistré ce paiement (un agent, etc.)
+  recordedById String
+  recordedBy   User   @relation(fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Enum pour le type de passeport (déjà défini, on garde)
+enum PassportType {
+  ORDINARY
+  SERVICE
+  DIPLOMATIC
+}
+
+// Enum pour le type de visa (déjà défini, on garde)
+enum VisaType {
+  SHORT_STAY
+  LONG_STAY
+  TRANSIT
+  OTHER
+}
+
+// NOUVEL ENUM : Pour le genre
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+// NOUVEL ENUM : Pour la situation familiale
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  OTHER // Au cas où
+}
+
+model VisaRequestDetails {
+  id String @id @default(uuid())
+
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur le demandeur
+  personFirstName     String
+  personLastName      String
+  personGender        Gender
+  personNationality   String
+  personBirthDate     DateTime
+  personBirthPlace    String
+  personMaritalStatus MaritalStatus
+
+  // Informations sur le passeport
+  passportType           PassportType
+  passportNumber         String
+  passportIssuedBy       String
+  passportIssueDate      DateTime
+  passportExpirationDate DateTime
+
+  // Informations sur la profession du demandeur
+  profession          String?
+  employerAddress     String?
+  employerPhoneNumber String?
+
+  // Informations sur le visa
+  visaType         VisaType
+  durationMonths   Int
+  destinationState String?
+
+  // Informations sur l'expiration du visa
+  visaExpirationDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum BirthActRequestType {
+  NEWBORN // nouveau-né
+  RENEWAL // renouvellement
+}
+
+model BirthActRequestDetails {
+  id String @id @default(uuid())
+
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  personFirstName   String
+  personLastName    String
+  personBirthDate   DateTime
+  personBirthPlace  String
+  personNationality String
+  personDomicile    String?
+
+  fatherFullName String // "Fils/Fille de :"
+  motherFullName String // "Et de"
+
+  requestType BirthActRequestType
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum JustificationDocumentType {
+  PASSPORT // Passeport
+  NATIONAL_ID_CARD // Carte Nationale d'Identité
+  BIRTH_CERTIFICATE // Acte de naissance
+  OTHER // Autre
+}
+
+model ConsularCardRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur la personne concernée par la carte
+  personFirstName     String
+  personLastName      String
+  personBirthDate     DateTime
+  personBirthPlace    String
+  personProfession    String?
+  personNationality   String // Devrait être Tchadienne pour une carte consulaire tchadienne
+  personDomicile      String? // Adresse actuelle (en Côte d'Ivoire ou autre)
+  personAddressInChad String? // Adresse au Tchad (importante pour le retour)
+
+  // Informations sur les parents (si nécessaires pour l'acte de naissance joint)
+  fatherFullName String? // Optionnel si l'acte de naissance est déjà fourni
+  motherFullName String? // Optionnel
+
+  // Pièce justificative utilisée pour la demande
+  justificationDocumentType   JustificationDocumentType? // Utilisation de l'Enum
+  justificationDocumentNumber String? // Numéro de cette pièce
+
+  // Date d'expiration de la carte consulaire délivrée (si applicable)
+  // Une carte consulaire a généralement une date de validité.
+  cardExpirationDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AccompanyingDocumentType {
+  OLD_PASSPORT // Ancien passeport
+  CONSULAR_CARD // Carte consulaire
+  OTHER // Autre
+}
+
+model LaissezPasserRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur la personne demandant le laissez-passer
+  personFirstName   String
+  personLastName    String
+  personBirthDate   DateTime
+  personBirthPlace  String
+  personProfession  String?
+  personNationality String
+  personDomicile    String?
+
+  // Informations sur les parents (si nécessaires)
+  fatherFullName String?
+  motherFullName String?
+
+  // Destination et motif
+  destination  String? // "Se rendant à"
+  travelReason String? @db.Text // "Motif de voyage"
+
+  // Accompagnateur(s)
+  accompanied  Boolean       @default(false) // "Accompagné (e) de"
+  accompaniers Accompanier[]
+
+  // Pièce justificative fournie (ancien passeport ou carte consulaire)
+  justificationDocumentType   JustificationDocumentType? // On réutilise l'Enum JustificationDocumentType
+  justificationDocumentNumber String?
+
+  // Date de validité du Laissez-Passer délivré
+  laissezPasserExpirationDate DateTime // "Valable jusqu'au"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Accompanier {
+  id String @id @default(uuid())
+
+  requestId String                      @unique
+  request   LaissezPasserRequestDetails @relation(fields: [requestId], references: [id])
+
+  firstName   String
+  lastName    String
+  birthDate   DateTime
+  birthPlace  String
+  nationality String
+  domicile    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MarriageCapacityActRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur l'époux
+  husbandFirstName   String
+  husbandLastName    String
+  husbandBirthDate   DateTime
+  husbandBirthPlace  String
+  husbandNationality String
+  husbandDomicile    String?
+
+  // Informations sur l'épouse
+  wifeFirstName   String
+  wifeLastName    String
+  wifeBirthDate   DateTime
+  wifeBirthPlace  String
+  wifeNationality String
+  wifeDomicile    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeathActRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur le défunt
+  deceasedFirstName   String
+  deceasedLastName    String
+  deceasedBirthDate   DateTime
+  deceasedDeathDate   DateTime
+  deceasedNationality String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PowerOfAttorneyRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur le mandataire (celui qui reçoit le pouvoir)
+  agentFirstName                 String
+  agentLastName                  String
+  agentJustificationDocumentType JustificationDocumentType? @default(NATIONAL_ID_CARD)
+  agentIdDocumentNumber          String? // Numéro de pièce d'identité du mandataire
+  agentAddress                   String?
+
+  // Informations sur le mandant (celui qui donne le pouvoir)
+  principalFirstName                 String
+  principalLastName                  String
+  principalJustificationDocumentType JustificationDocumentType? @default(NATIONAL_ID_CARD)
+  principalIdDocumentNumber          String? // Numéro de pièce d'identité du mandant
+  principalAddress                   String?
+
+  // Type de procuration (ex: vente immobilière, gestion bancaire, etc.)
+  powerOfType String? // Ou un Enum si les types sont fixes (ex: REAL_ESTATE, BANKING, etc.)
+
+  // Motif de la procuration
+  reason String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ChadianParentRelationshipType {
+  FATHER
+  MOTHER
+}
+
+model NationalityCertificateRequestDetails {
+  id String @id @default(uuid())
+
+  // Relation un-à-un avec la demande parente
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // Informations sur la personne demandant le certificat de nationalité
+  applicantFirstName   String
+  applicantLastName    String
+  applicantBirthDate   DateTime
+  applicantBirthPlace  String
+  applicantNationality String // Nationalité déclarée par le demandeur
+
+  // Informations sur le parent tchadien justifiant la nationalité
+  chadianParentFirstName String // Prénom du parent tchadien
+  chadianParentLastName  String // Nom du parent tchadien
+
+  // Lien de parenté avec le parent tchadien (Père ou Mère)
+  chadianParentRelationship ChadianParentRelationshipType // Utilisation de l'Enum
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

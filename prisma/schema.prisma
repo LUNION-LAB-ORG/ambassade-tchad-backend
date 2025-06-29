@@ -1,0 +1,59 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres", "relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum pour les rôles spécifiques au PERSONNEL de l'ambassade
+enum Role {
+  AGENT
+  CHEF_SERVICE
+  CONSUL
+  ADMIN
+}
+
+// Enum pour le type général d'utilisateur
+enum UserType {
+  CLIENT
+  PERSONNEL
+}
+
+// Enum pour le statut d'activation du compte utilisateur
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id          String  @id @default(uuid())
+  email       String  @unique
+  password    String
+  firstName   String?
+  lastName    String?
+  phoneNumber String? @unique
+
+  // Le rôle est pertinent uniquement si type est 'PERSONNEL'
+  // On ne met pas de @default ici car il sera null pour les CLIENTS
+  role Role?
+
+  // Distinction fondamentale entre un client et un membre du personnel
+  // 'CLIENT' ou 'PERSONNEL' doit être une chaîne de caractères correspondant à une valeur de l'enum
+  type UserType @default(CLIENT) 
+
+  // Statut d'activation du compte
+  status UserStatus @default(ACTIVE) 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation avec les demandes qu'un utilisateur a soumises (principalement pour les CLIENTS)
+  // requests    Request[] 
+
+  // Relations pour le CMS (principalement pour le PERSONNEL)
+  // news        News[]    @relation("AuthorNews")
+  // events      Event[]   @relation("AuthorEvent")
+}

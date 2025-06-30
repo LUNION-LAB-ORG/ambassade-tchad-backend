@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Prisma, User } from '@prisma/client';
-
+import { UserEventPayload } from '../interfaces/user-event.interface';
 
 @Injectable()
 export class UserEvent {
@@ -11,37 +10,24 @@ export class UserEvent {
     ) { }
 
     /**
-     * Emet un évènement de la création d'un utilisateur
+     * Émet un événement de la création d'un utilisateur (Demandeur ou Personnel).
+     * @param payload Contient l'acteur de l'action et l'utilisateur créé.
      */
-    async userCreatedEvent(payload:
-        {
-            actor: Prisma.UserGetPayload<{ include: { restaurant: true } }>,
-            user: Prisma.UserGetPayload<{ include: { restaurant: true } }>
-        }
-    ) {
+    async userCreatedEvent(payload: UserEventPayload) {
         this.eventEmitter.emit(
             'user.created',
             payload
         );
     }
 
-    /**
-    * Emet un évènement de la création d'un membre
-    */
-    async memberCreatedEvent(payload: {
-        actor: Prisma.UserGetPayload<{ include: { restaurant: true } }>,
-        user: Prisma.UserGetPayload<{ include: { restaurant: true } }>
-    }) {
-        this.eventEmitter.emit(
-            'member.created',
-            payload
-        );
-    }
+    // La méthode 'memberCreatedEvent' est supprimée car sa logique est désormais
+    // gérée par 'userCreatedEvent' en fonction du type d'utilisateur.
 
     /**
-     * Emet un évènement de la activation d'un utilisateur
+     * Émet un événement de l'activation d'un utilisateur.
+     * @param payload Contient l'acteur de l'action et l'utilisateur activé.
      */
-    async userActivatedEvent(payload: { actor: User, data: User }) {
+    async userActivatedEvent(payload: UserEventPayload) {
         this.eventEmitter.emit(
             'user.activated',
             payload
@@ -49,9 +35,10 @@ export class UserEvent {
     }
 
     /**
-     * Emet un évènement de la désactivation d'un utilisateur
+     * Émet un événement de la désactivation d'un utilisateur.
+     * @param payload Contient l'acteur de l'action et l'utilisateur désactivé.
      */
-    async userDeactivatedEvent(payload: { actor: User, data: User }) {
+    async userDeactivatedEvent(payload: UserEventPayload) {
         this.eventEmitter.emit(
             'user.deactivated',
             payload
@@ -59,9 +46,10 @@ export class UserEvent {
     }
 
     /**
-     * Emet un évènement de la suppression d'un utilisateur
+     * Émet un événement de la suppression d'un utilisateur.
+     * @param payload Contient l'acteur de l'action et l'utilisateur supprimé.
      */
-    async userDeletedEvent(payload: { actor: User, data: User }) {
+    async userDeletedEvent(payload: UserEventPayload) {
         this.eventEmitter.emit(
             'user.deleted',
             payload

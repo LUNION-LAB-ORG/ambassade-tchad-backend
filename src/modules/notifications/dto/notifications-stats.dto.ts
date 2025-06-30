@@ -22,10 +22,10 @@ export class NotificationStatsDto {
     @ApiProperty({
         description: 'Répartition par type de notification',
         example: {
-            ORDER: 25,
+            SYSTEM: 25,
             PROMOTION: 15,
-            SYSTEM: 10
+            REQUEST_UPDATE: 10
         }
     })
-    by_type: Record<string, number>;
+    byType: Record<string, number>;
 }

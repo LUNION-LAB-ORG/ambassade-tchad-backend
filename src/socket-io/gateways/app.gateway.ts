@@ -1,4 +1,3 @@
-
 import {
     WebSocketGateway,
     WebSocketServer,
@@ -8,14 +7,14 @@ import {
     ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { EntityStatus } from '@prisma/client';
+import { UserType, Role, UserStatus } from '@prisma/client'; // Import de nos Enums
 import { PrismaService } from 'src/database/services/prisma.service';
-import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
-import { ConnectedUser } from '../interfaces/app.gateway.interface';
+import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service'; // Assurez-vous que ce service est correct
+import { ConnectedUser } from '../interfaces/app.gateway.interface'; // Assurez-vous du chemin correct
 
 @WebSocketGateway({
     cors: { origin: '*' },
-    namespace: '/app' // Namespace global pour toute l'app
+    namespace: '/app'
 })
 export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
@@ -28,112 +27,111 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private jwtService: JsonWebTokenService,
     ) { }
 
-    async handleConnection(client: Socket) {
+    async handleConnection(demandeur: Socket) {
         try {
-            // Récupérer le token depuis les headers
-            const token = client.handshake.query.token as string || '';
-
-            // Récupérer le type d'utilisateur depuis les query params
-            const userType = client.handshake.query.type as "user" | "customer"
+            const token = demandeur.handshake.query.token as string || '';
+            // Le type d'utilisateur doit correspondre à notre Enum UserType
+            const userType = demandeur.handshake.query.type as UserType;
 
             if (!token || !userType) {
-                console.log('Token ou type d\'utilisateur manquant');
-                client.disconnect();
+                console.log('Connexion WebSocket: Token ou type d\'utilisateur manquant dans les query params.');
+                demandeur.disconnect();
                 return;
             }
 
-            // Vérifier et décoder le token
-            const decoded = await this.jwtService.verifyToken(token, userType);
+            // Vérifier et décoder le token en fonction du type d'utilisateur attendu
+            // Maintenant, le JsonWebTokenService a `verifyAccessToken`
+            const decoded = await this.jwtService.verifyAccessToken(token, userType);
 
-            // Identifier le type d'utilisateur et récupérer ses informations
+            if (!decoded || !decoded.sub) {
+                console.log('Connexion WebSocket: Token invalide ou décodage échoué.');
+                demandeur.disconnect();
+                return;
+            }
+
+            // Identifier l'utilisateur et récupérer ses informations via Prisma
             const userInfo = await this.identifyUser(decoded, userType);
 
             if (!userInfo) {
-                console.log('Utilisateur non trouvé');
-                client.disconnect();
+                console.log(`Connexion WebSocket: Utilisateur ${decoded.sub} de type ${userType} non trouvé ou inactif.`);
+                demandeur.disconnect();
                 return;
             }
 
             // Stocker la connexion
-            this.connectedUsers.set(client.id, {
+            this.connectedUsers.set(demandeur.id, {
                 ...userInfo,
-                socketId: client.id
+                socketId: demandeur.id
             });
-            // Rejoindre les rooms
-            await this.joinRooms(client, userInfo);
-            console.log(`${userInfo.type} ${userInfo.id} connecté`);
+
+            // Rejoindre les rooms pertinentes
+            await this.joinRooms(demandeur, userInfo);
+            console.log(`Connexion WebSocket: ${userInfo.type} ${userInfo.id} connecté. (Socket ID: ${demandeur.id})`);
 
         } catch (error) {
-            console.error('Erreur de connexion:', error);
-            client.disconnect();
+            console.error('Connexion WebSocket: Erreur lors de la connexion:', error.message);
+            demandeur.disconnect();
         }
     }
 
-    handleDisconnect(client: Socket) {
-        const user = this.connectedUsers.get(client.id);
+    handleDisconnect(demandeur: Socket) {
+        const user = this.connectedUsers.get(demandeur.id);
         if (user) {
-            console.log(`${user.type} ${user.id} déconnecté`);
-            this.connectedUsers.delete(client.id);
+            console.log(`Déconnexion WebSocket: ${user.type} ${user.id} déconnecté. (Socket ID: ${demandeur.id})`);
+            this.connectedUsers.delete(demandeur.id);
         }
     }
 
-    private async identifyUser(decoded: { sub: string }, type: "user" | "customer"): Promise<ConnectedUser | null> {
+    private async identifyUser(decoded: { sub: string }, type: UserType): Promise<ConnectedUser | null> {
         if (!decoded.sub) return null;
 
-        if (type === "customer") {
-            const customer = await this.prisma.customer.findUnique({
-                where: { id: decoded.sub, entity_status: EntityStatus.ACTIVE }
-            });
+        // Requête unique pour le modèle User
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: decoded.sub,
+                status: UserStatus.ACTIVE, // Utilisation de notre Enum UserStatus
+                type: type // Vérifie que le type correspond à celui déclaré par le demandeur
+            },
+        });
 
-            if (customer) {
-                return {
-                    id: customer.id,
-                    type: 'customer',
-                    socketId: ''
-                };
-            }
-        }
-        else if (type === "user") {
-            const user = await this.prisma.user.findUnique({
-                where: { id: decoded.sub, entity_status: EntityStatus.ACTIVE },
-                include: { restaurant: true }
-            });
-
-            if (user) {
-                return {
-                    id: user.id,
-                    type: 'user',
-                    userType: user.type,
-                    restaurantId: user.restaurant_id ?? undefined,
-                    socketId: ''
-                };
-            }
+        if (!user) {
+            return null;
         }
 
-        return null;
+        // Construction de l'objet ConnectedUser
+        if (user.type === UserType.DEMANDEUR) {
+            return {
+                id: user.id,
+                type: UserType.DEMANDEUR,
+                role: null, // Les clients n'ont pas de rôle
+                socketId: '' // Sera rempli par handleConnection
+            };
+        } else if (user.type === UserType.PERSONNEL) {
+            return {
+                id: user.id,
+                type: UserType.PERSONNEL,
+                role: user.role, // Le personnel a un rôle
+                socketId: '' // Sera rempli par handleConnection
+            };
+        }
+
+        return null; // En cas de type d'utilisateur inattendu
     }
 
-    private async joinRooms(client: Socket, userInfo: ConnectedUser) {
-        // Rooms par type d'utilisateur
-        await client.join(`${userInfo.type}s`);
+    private async joinRooms(demandeur: Socket, userInfo: ConnectedUser) {
+        // Room générale par type d'utilisateur (ex: 'clients', 'personnels')
+        await demandeur.join(`${userInfo.type.toLowerCase()}s`);
 
-        // Rooms pour tous les restaurants
-        await client.join('restaurants');
+        // Room spécifique à l'utilisateur individuel (ex: 'client_ID', 'personnel_ID')
+        await demandeur.join(`${userInfo.type.toLowerCase()}_${userInfo.id}`);
 
+        if (userInfo.type === UserType.PERSONNEL) {
+            // Room pour tous les membres du personnel qui ont accès au back-office général
+            await demandeur.join('backoffice_all');
 
-        if (userInfo.type === 'customer') {
-            // Room spécifique au customer
-            await client.join(`customer_${userInfo.id}`);
-        } else if (userInfo.type === 'user') {
-            // Room spécifique à l'utilisateur
-            await client.join(`user_${userInfo.id}`);
-
-            if (userInfo.userType === 'BACKOFFICE') {
-                // Backoffice peut voir toutes les données
-                await client.join('backoffice_all');
-            } else if (userInfo.userType === 'RESTAURANT' && userInfo.restaurantId) {
-                // Restaurant ne voit que ses données
-                await client.join(`restaurant_${userInfo.restaurantId}`);
+            // Room spécifique au rôle du personnel (ex: 'role_admin', 'role_agent', 'role_chef_service', 'role_consul')
+            if (userInfo.role) {
+                await demandeur.join(`role_${userInfo.role.toLowerCase()}`);
             }
         }
     }
@@ -142,40 +140,64 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // MÉTHODES D'ÉMISSION GÉNÉRIQUES
     // ================================
 
-    // Émettre à un utilisateur spécifique
-    emitToUser<T>(userId: string, userType: 'customer' | 'user', event: string, data: T) {
-        const room = userType === 'customer' ? `customer_${userId}` : `user_${userId}`;
+    /**
+     * Émet un événement à un utilisateur spécifique (demandeur ou personnel).
+     * @param userId L'ID de l'utilisateur cible.
+     * @param userType Le type de l'utilisateur ('DEMANDEUR' ou 'PERSONNEL').
+     * @param event Le nom de l'événement.
+     * @param data Les données à envoyer.
+     */
+    emitToUser<T>(userId: string, userType: UserType, event: string, data: T) {
+        const room = userType === UserType.DEMANDEUR ? `client_${userId}` : `personnel_${userId}`;
         this.server.to(room).emit(event, data);
     }
 
-    // Émettre à tous les backoffice
-    emitToBackoffice<T>(event: string, data: T) {
+    /**
+     * Émet un événement à tous les membres du personnel connectés.
+     * @param event Le nom de l'événement.
+     * @param data Les données à envoyer.
+     */
+    emitToAllPersonnel<T>(event: string, data: T) {
         this.server.to('backoffice_all').emit(event, data);
     }
 
-    // Émettre à un restaurant spécifique
-    emitToRestaurant<T>(restaurantId: string, event: string, data: T) {
-        this.server.to(`restaurant_${restaurantId}`).emit(event, data);
+    /**
+     * Émet un événement à tous les membres du personnel d'un rôle spécifique.
+     * @param role Le rôle cible (ex: 'ADMIN', 'AGENT').
+     * @param event Le nom de l'événement.
+     * @param data Les données à envoyer.
+     */
+    emitToRole<T>(role: Role, event: string, data: T) {
+        this.server.to(`role_${role.toLowerCase()}`).emit(event, data);
     }
 
-    // Émettre à tous les utilisateurs d'un type
-    emitToUserType<T>(userType: 'customers' | 'users', event: string, data: T) {
-        this.server.to(userType).emit(event, data);
+    /**
+     * Émet un événement à tous les utilisateurs d'un type de groupe donné (clients ou personnels).
+     * @param groupType Le type de groupe ('clients' ou 'personnels').
+     * @param event Le nom de l'événement.
+     * @param data Les données à envoyer.
+     */
+    emitToUserTypeGroup<T>(groupType: 'clients' | 'personnels', event: string, data: T) {
+        this.server.to(groupType).emit(event, data);
     }
 
-    // Broadcast à tous les connectés
+    /**
+     * Diffuse un événement à tous les utilisateurs connectés, quel que soit leur type ou rôle.
+     * @param event Le nom de l'événement.
+     * @param data Les données à envoyer.
+     */
     broadcast<T>(event: string, data: T) {
         this.server.emit(event, data);
     }
 
     @SubscribeMessage('ping')
-    handlePing(@ConnectedSocket() client: Socket) {
-        const user = this.connectedUsers.get(client.id);
+    handlePing(@ConnectedSocket() demandeur: Socket) {
+        const user = this.connectedUsers.get(demandeur.id);
         if (!user) return;
         this.emitToUser(user.id, user.type, 'pong', `pong from ${user.type} ${user.id}`);
     }
 
-    // Getter pour les statistiques
+    // Getter pour les statistiques de connexion
     getConnectedUsers() {
         return this.connectedUsers;
     }
@@ -183,19 +205,20 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     getConnectionStats() {
         const stats = {
             total: this.connectedUsers.size,
-            customers: 0,
-            backoffice: 0,
-            restaurants: new Map<string, number>()
+            clients: 0,
+            personnel: 0,
+            personnelByRole: new Map<Role, number>(),
         };
 
         this.connectedUsers.forEach(user => {
-            if (user.type === 'customer') {
-                stats.customers++;
-            } else if (user.userType === 'BACKOFFICE') {
-                stats.backoffice++;
-            } else if (user.userType === 'RESTAURANT' && user.restaurantId) {
-                const current = stats.restaurants.get(user.restaurantId) || 0;
-                stats.restaurants.set(user.restaurantId, current + 1);
+            if (user.type === UserType.DEMANDEUR) {
+                stats.clients++;
+            } else if (user.type === UserType.PERSONNEL) {
+                stats.personnel++;
+                if (user.role) {
+                    const current = stats.personnelByRole.get(user.role) || 0;
+                    stats.personnelByRole.set(user.role, current + 1);
+                }
             }
         });
 

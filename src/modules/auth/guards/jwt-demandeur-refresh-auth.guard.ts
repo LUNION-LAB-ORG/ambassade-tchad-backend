@@ -1,10 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ExecutionContext } from '@nestjs/common';
-import { User, UserStatus } from '@prisma/client';
+import { User, UserStatus }
+  from '@prisma/client';
 
 @Injectable()
-export class JwtRefreshAuthGuard extends AuthGuard('jwt-refresh') {
+export class JwtClientRefreshAuthGuard extends AuthGuard('jwt-demandeur-refresh') {
   constructor() {
     super();
   }
@@ -18,7 +19,7 @@ export class JwtRefreshAuthGuard extends AuthGuard('jwt-refresh') {
     const user = request.user as User;
 
     if (!user || user.status === UserStatus.INACTIVE) {
-      throw new UnauthorizedException('Accès refusé : compte personnel inactif ou jeton de rafraîchissement invalide.');
+      throw new UnauthorizedException('Accès refusé : compte demandeur inactif ou jeton de rafraîchissement invalide.');
     }
     return result;
   }

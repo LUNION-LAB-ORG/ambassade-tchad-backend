@@ -30,8 +30,8 @@ export class QueryNotificationDto {
 
   @ApiPropertyOptional({
     enum: NotificationTarget,
-    description: 'Cible de la notification (utilisateur ou client)',
-    example: NotificationTarget.CUSTOMER
+    description: 'Cible de la notification',
+    example: NotificationTarget.INDIVIDUAL
   })
   @IsOptional()
   @IsEnum(NotificationTarget)
@@ -40,7 +40,7 @@ export class QueryNotificationDto {
   @ApiPropertyOptional({
     enum: NotificationType,
     description: 'Type de notification',
-    example: NotificationType.ORDER
+    example: NotificationType.REQUEST_UPDATE
   })
   @IsOptional()
   @IsEnum(NotificationType)

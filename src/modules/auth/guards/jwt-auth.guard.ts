@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common/decorators';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ExecutionContext } from '@nestjs/common';
-import { UnauthorizedException } from '@nestjs/common';
-import { EntityStatus } from '@prisma/client';
+import { User, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -10,31 +9,29 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  // Gestion de l'authentification
   async canActivate(context: ExecutionContext) {
     const result = (await super.canActivate(
       context,
-    )) as unknown as Promise<boolean>;
+    )) as boolean;
 
-    // Si l'utilisateur est authentifié
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const user = request.user as User;
 
-    // Si l'utilisateur est inactif
-    if (user.entity_status === EntityStatus.INACTIVE) {
-      throw new UnauthorizedException('Utilisateur inactif');
+    // Vérifier l'état du compte
+    if (!user || user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException('Accès refusé : compte inactif ou non authentifié.');
     }
-    // Si l'utilisateur est supprimé
-    if (user.entity_status === EntityStatus.DELETED) {
-      throw new UnauthorizedException('Utilisateur supprimé');
+
+    // Vérifier si le personnel doit changer son mot de passe initial
+    if (user.isPasswordChangeRequired) {
+      throw new UnauthorizedException('Changement de mot de passe requis.');
     }
     return result;
   }
 
-  // Gestion de la requête
   handleRequest(err, user, info) {
     if (err || !user) {
-      throw err || new UnauthorizedException('Authentication required');
+      throw err || new UnauthorizedException('Authentification requise');
     }
     return user;
   }

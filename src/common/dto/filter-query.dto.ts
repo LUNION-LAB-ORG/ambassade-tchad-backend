@@ -1,6 +1,5 @@
 import { IsOptional, IsEnum, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { EntityStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class FilterQueryDto {
@@ -13,15 +12,6 @@ export class FilterQueryDto {
     @IsOptional()
     @Type(() => Number)
     limit?: number = 10;
-
-    @ApiPropertyOptional({
-        description: 'État de l\'entité',
-        enum: EntityStatus,
-        default: EntityStatus.ACTIVE
-    })
-    @IsEnum(EntityStatus)
-    @IsOptional()
-    status?: EntityStatus = EntityStatus.ACTIVE;
 
     @ApiPropertyOptional({ description: 'Termes de recherche (nom, email, téléphone,...)' })
     @IsString()

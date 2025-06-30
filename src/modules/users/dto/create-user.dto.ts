@@ -1,70 +1,75 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, MaxLength, IsOptional, IsString, IsPhoneNumber } from 'class-validator';
+import {
+  IsNotEmpty,
+  MaxLength,
+  IsString,
+  IsEnum,
+  IsEmail,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateUserDto {
-  // FULLNAME
+  // PRÉNOM
   @ApiProperty({
-    description: "Nom complet de l'utilisateur",
-    example: 'Jean Dupont',
-    required: true,
-    maxLength: 100,
-  })
-  @IsNotEmpty()
-  @MaxLength(100)
-  @Transform(({ value }) => value.trim())
-  fullname: string;
-
-  // EMAIL
-  @ApiProperty({
-    description: "email de l'utilisateur",
+    description: "Prénom de l'utilisateur du personnel",
     example: 'Jean',
     required: true,
     maxLength: 100,
   })
-  @IsNotEmpty()
-  @MaxLength(100)
+  @IsNotEmpty({ message: 'Le prénom est obligatoire.' })
+  @IsString({ message: 'Le prénom doit être une chaîne de caractères.' })
+  @MaxLength(100, { message: 'Le prénom ne doit pas dépasser 100 caractères.' })
   @Transform(({ value }) => value.trim())
-  email: string;
+  firstName: string;
 
-  // PHONE
-  @ApiProperty({ description: 'Numéro de téléphone de l\'utilisateur', example: '+225070707070' })
-  @IsPhoneNumber("CI", { message: 'Numéro de téléphone non valide, utilisez le format +225' })
-  @IsString()
-  @Transform(({ value }) => value.trim())
-  phone: string;
-
-  // IMAGE
+  // NOM DE FAMILLE
   @ApiProperty({
-    description: "Image de l'utilisateur",
-    required: false,
-    type: "file" as "string",
-  })
-  @IsOptional()
-  image?: string;
-
-  // ADDRESS
-  @ApiProperty({
-    description: "Adresse de l'utilisateur",
-    example: '123 rue du test',
-    required: false,
-    maxLength: 255,
-  })
-  @IsOptional()
-  @MaxLength(255)
-  @Transform(({ value }) => value.trim())
-  address: string;
-
-  // ROLE
-  @ApiProperty({
-    description: "le role de l'utilisateur",
-    example: 'ADMIN',
+    description: "Nom de famille de l'utilisateur du personnel",
+    example: 'Dupont',
     required: true,
     maxLength: 100,
   })
-  @IsNotEmpty()
-  @MaxLength(100)
-  @Transform(({ value }) => value.trim().toUpperCase() as UserRole)
-  role: UserRole;
+  @IsNotEmpty({ message: 'Le nom de famille est obligatoire.' })
+  @IsString({ message: 'Le nom de famille doit être une chaîne de caractères.' })
+  @MaxLength(100, { message: 'Le nom de famille ne doit pas dépasser 100 caractères.' })
+  @Transform(({ value }) => value.trim())
+  lastName: string;
+
+  // EMAIL
+  @ApiProperty({
+    description: "Email de l'utilisateur du personnel",
+    example: 'jean.dupont@ambassade.com',
+    required: true,
+    maxLength: 100,
+  })
+  @IsNotEmpty({ message: 'L\'email est obligatoire.' })
+  @IsEmail({}, { message: 'L\'email doit être une adresse email valide.' })
+  @MaxLength(100, { message: 'L\'email ne doit pas dépasser 100 caractères.' })
+  @Transform(({ value }) => value.trim().toLowerCase())
+  email: string;
+
+  // NUMÉRO DE TÉLÉPHONE
+  @ApiProperty({
+    description: 'Numéro de téléphone de l\'utilisateur du personnel',
+    example: '+2250707070707',
+    required: false,
+    maxLength: 20,
+  })
+  @IsOptional()
+  @IsString({ message: 'Le numéro de téléphone doit être une chaîne de caractères.' })
+  @MaxLength(20, { message: 'Le numéro de téléphone ne doit pas dépasser 20 caractères.' })
+  @Transform(({ value }) => value.trim())
+  phoneNumber?: string;
+
+  @ApiProperty({
+    description: "Rôle de l'utilisateur (AGENT, CHEF_SERVICE, CONSUL, ADMIN)",
+    enum: Role,
+    example: Role.AGENT,
+    required: true,
+  })
+  @IsNotEmpty({ message: 'Le rôle est obligatoire pour un utilisateur du personnel.' })
+  @IsEnum(Role, { message: 'Le rôle doit être une valeur valide de Role.' })
+  role: Role;
 }

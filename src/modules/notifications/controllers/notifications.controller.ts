@@ -37,7 +37,7 @@ export class NotificationsController {
   @Post()
   @ApiOperation({
     summary: 'Créer une nouvelle notification',
-    description: 'Permet de créer une nouvelle notification pour un utilisateur ou client spécifique.',
+    description: 'Permet de créer une nouvelle notification pour un utilisateur ou demandeur spécifique.',
   })
   @ApiCreatedResponse({
     description: 'Notification créée avec succès',

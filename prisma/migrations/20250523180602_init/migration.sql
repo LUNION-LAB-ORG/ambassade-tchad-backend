@@ -231,7 +231,7 @@ CREATE TABLE "Paiement" (
     "mode" "PaiementMode" NOT NULL,
     "source" TEXT,
     "fees" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "client" JSON,
+    "demandeur" JSON,
     "client_id" UUID,
     "status" "PaiementStatus" NOT NULL,
     "reference" VARCHAR NOT NULL,

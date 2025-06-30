@@ -1,4 +1,4 @@
-generator client {
+generator demandeur {
   provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearchPostgres", "relationJoins"]
 }
@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum pour les rôles spécifiques au PERSONNEL de l'ambassade
+// Enum pour les rôles spécifiques au PERSONNEL de l'ambassade/consulat
 enum Role {
   AGENT
   CHEF_SERVICE
@@ -16,10 +16,10 @@ enum Role {
   ADMIN
 }
 
-// Enum pour le type général d'utilisateur
+// Enum pour le type général d'utilisateur de la plateforme
 enum UserType {
-  CLIENT
-  PERSONNEL
+  DEMANDEUR // Utilisateur demandeur de services
+  PERSONNEL // Utilisateur membre du personnel de l'ambassade/consulat
 }
 
 // Enum pour le statut d'activation du compte utilisateur
@@ -36,32 +36,52 @@ model User {
   lastName    String?
   phoneNumber String? @unique
 
-  // Le rôle est pertinent uniquement si type est 'PERSONNEL'
-  // On ne met pas de @default ici car il sera null pour les CLIENTS
-  role Role?
-
-  // Distinction fondamentale entre un client et un membre du personnel
-  // 'CLIENT' ou 'PERSONNEL' doit être une chaîne de caractères correspondant à une valeur de l'enum
-  type UserType @default(CLIENT)
-
-  // Statut d'activation du compte
-  status UserStatus @default(ACTIVE)
+  role                     Role? // Rôle spécifique si l'utilisateur est du type PERSONNEL (peut être null pour les CLIENTS)
+  type                     UserType   @default(DEMANDEUR) // Par défaut, un nouvel utilisateur est un DEMANDEUR
+  status                   UserStatus @default(ACTIVE)
+  isPasswordChangeRequired Boolean    @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relation avec les demandes qu'un utilisateur a soumises (principalement pour les CLIENTS)
+  // Relation avec les demandes soumises par cet utilisateur (principalement pour les CLIENTS)
   requests Request[]
 
+  // Relations pour les actions effectuées par cet utilisateur (principalement pour le PERSONNEL)
+  uploadedDocuments Document[]             @relation("UploaderDocuments") // Documents uploadés par cet utilisateur
+  statusChanges     RequestStatusHistory[] @relation("StatusChanger") // Changements de statut effectués par cet utilisateur
+  recordedPayments  Payment[]              @relation("PaymentRecorder") // Paiements enregistrés par cet utilisateur
+
   // Relations pour le CMS (principalement pour le PERSONNEL)
-  // news        News[]    @relation("AuthorNews")
-  // events      Event[]   @relation("AuthorEvent")
-  documents     Document[]
-  statusHistory RequestStatusHistory[]
-  Payment       Payment[]
+  news                News[]               @relation("AuthorNews")
+  events              Event[]              @relation("AuthorEvent")
+  expenses            Expense[]            @relation("ExpenseRecorder")
+  services            Service[]            @relation("ServiceUpdater")
+  settings            Setting[]            @relation("SettingUpdater")
+  notificationSetting NotificationSetting?
+  notifications       Notification[]
+  otpTokens           OtpToken[]
+
+  @@index([email])
+  @@index([type])
+  @@index([status])
 }
 
-// Enum pour les types de services/demandes
+model CounterOtp {
+  id      String @id @default(uuid()) @db.Uuid
+  counter Int
+}
+
+model OtpToken {
+  id      String   @id @default(uuid()) @db.Uuid
+  code    String   @db.VarChar(255)
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  counter Int?
+  expire  DateTime @db.Timestamp(6)
+}
+
+// Enum pour les types de services/demandes offerts par la mission diplomatique
 enum ServiceType {
   VISA
   BIRTH_ACT_APPLICATION // Demande d'acte de naissance
@@ -73,11 +93,11 @@ enum ServiceType {
   NATIONALITY_CERTIFICATE // Demande de certificat de nationalité
 }
 
-// Enum pour les statuts de la demande
+// Enum pour les statuts de la demande (Workflow générique)
 enum RequestStatus {
   NEW // Nouvelle demande soumise
   IN_REVIEW_DOCS // En cours de vérification des documents (par l'agent)
-  PENDING_ADDITIONAL_INFO // En attente d'informations ou de documents complémentaires du client
+  PENDING_ADDITIONAL_INFO // En attente d'informations ou de documents complémentaires du demandeur
   APPROVED_BY_AGENT // Approuvé par l'agent (prêt pour le chef de service)
   APPROVED_BY_CHEF // Approuvé par le chef de service (prêt pour le consul/délivrance)
   APPROVED_BY_CONSUL // Approuvé par le consul (décision finale d'approbation)
@@ -92,12 +112,12 @@ enum RequestStatus {
 model Request {
   id String @id @default(uuid())
 
-  // Numéro de ticket unique pour le suivi par le client
+  // Numéro de ticket unique pour le suivi par le demandeur
   ticketNumber String @unique
 
-  // Lien vers l'utilisateur (client) qui a soumis la demande
+  // Lien vers l'utilisateur (demandeur) qui a soumis la demande
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Type de demande (Visa, Acte de Naissance, etc.)
   serviceType ServiceType
@@ -114,88 +134,96 @@ model Request {
   // Date de finalisation de la demande (approbation, rejet, délivrance)
   completionDate DateTime?
 
-  // NOUVEAU CHAMP : Date à laquelle le document résultant de la demande a été délivré
+  // Date à laquelle le document résultant de la demande a été délivré
   issuedDate DateTime? // Optionnel, car une demande peut être rejetée sans délivrance
 
-  // Champ pour des observations internes par le personnel de l'ambassade
+  // Numéro de téléphone de contact spécifique à cette demande
+  contactPhoneNumber String? // Optionnel
+
+  // Champ pour des observations internes par le personnel
   observations String? @db.Text
 
   // Coût de la demande au moment de la soumission (pour la traçabilité financière)
   amount Float
 
-  // Relations
+  // Relations 1-à-N
   documents     Document[]
   statusHistory RequestStatusHistory[]
-  // payment        Payment? 
 
-  // Relations vers les modèles de détails spécifiques (la expirationDate sera dedans)
-  visaDetails                   VisaRequestDetails?
-  birthActDetails               BirthActRequestDetails?
-  consularCardDetails           ConsularCardRequestDetails?
-  laissezPasserDetails          LaissezPasserRequestDetails?
-  marriageCapacityActDetails    MarriageCapacityActRequestDetails?
-  deathActDetails               DeathActRequestDetails?
-  powerOfAttorneyDetails        PowerOfAttorneyRequestDetails?
+  // Relations 1-à-1 vers les modèles de détails spécifiques (et leurs champs de liaison)
+  visaDetails VisaRequestDetails?
+
+  birthActDetails BirthActRequestDetails?
+
+  consularCardDetails ConsularCardRequestDetails?
+
+  laissezPasserDetails LaissezPasserRequestDetails?
+
+  marriageCapacityActDetails MarriageCapacityActRequestDetails?
+
+  deathActDetails DeathActRequestDetails?
+
+  powerOfAttorneyDetails PowerOfAttorneyRequestDetails?
+
   nationalityCertificateDetails NationalityCertificateRequestDetails?
-  Payment                       Payment?
+
+  // Relation 1-à-1 pour le paiement
+  payment Payment?
+
+  @@index([ticketNumber])
+  @@index([status])
+  @@index([serviceType])
+  @@index([submissionDate])
+  @@index([userId])
 }
 
 model Document {
   id String @id @default(uuid())
 
-  // Nom original du fichier (tel que téléchargé par l'utilisateur)
-  fileName String
-
-  // Type MIME du fichier (ex: image/jpeg, application/pdf)
-  mimeType String
-
-  // Chemin de stockage ou URL du fichier (ex: sur S3, Google Cloud Storage, ou dossier local si petit projet)
-  filePath String
-
-  // Taille du fichier en octets
+  fileName   String
+  mimeType   String
+  filePath   String
   fileSizeKB Int // Taille en Kilobytes
 
-  // Lien vers la demande à laquelle ce document est attaché
   requestId String
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Qui a téléchargé/ajouté ce document (un client ou un agent)
-  uploaderId String?
-  uploader   User?   @relation(fields: [uploaderId], references: [id])
+  // Qui a téléchargé/ajouté ce document (un demandeur ou un agent)
+  uploaderId String
+  uploader   User   @relation("UploaderDocuments", fields: [uploaderId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([uploaderId])
 }
 
 model RequestStatusHistory {
   id String @id @default(uuid())
 
-  // Lien vers la demande concernée
   requestId String
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Ancien statut de la demande
-  oldStatus RequestStatus? // Peut être null si c'est le tout premier statut (NEW)
-
-  // Nouveau statut de la demande
+  oldStatus RequestStatus?
   newStatus RequestStatus
 
-  // Qui a effectué le changement de statut (agent, chef de service, admin)
-  // C'est important pour la traçabilité des actions du personnel
+  // Qui a effectué le changement de statut
   changerId String
-  changer   User   @relation(fields: [changerId], references: [id])
+  changer   User   @relation("StatusChanger", fields: [changerId], references: [id], onDelete: Restrict)
 
-  // Date et heure du changement de statut
   changedAt DateTime @default(now())
+  reason    String?  @db.Text
 
-  // Raison du changement (optionnel, ex: "Documents validés", "Manque pièce d'identité")
-  reason String? @db.Text
+  @@index([requestId])
+  @@index([changerId])
+  @@index([changedAt])
 }
 
 // Enum pour les méthodes de paiement
 enum PaymentMethod {
   CASH
-  MOBILE_MONEY // Ex: MTN MoMo, Orange Money, Moov Money
+  MOBILE_MONEY
   BANK_TRANSFER
   CREDIT_CARD
   OTHER
@@ -204,37 +232,35 @@ enum PaymentMethod {
 model Payment {
   id String @id @default(uuid())
 
-  requestId String  @unique // @unique car 1-à-1 avec Request (pour l'instant)
-  request   Request @relation(fields: [requestId], references: [id])
+  // Liaison 1-à-1 avec la Request (chaque paiement est pour une Request unique pour simplifier)
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Montant du paiement
-  amount Float
+  amount         Float
+  paymentDate    DateTime      @default(now())
+  method         PaymentMethod
+  transactionRef String?       @unique
 
-  // Date du paiement
-  paymentDate DateTime @default(now())
-
-  // Méthode de paiement (Cash, Mobile Money, Virement Bancaire, Carte Bancaire)
-  method PaymentMethod
-
-  // Référence de transaction (pour les paiements électroniques)
-  transactionRef String? @unique // Peut être null pour le cash
-
-  // Qui a enregistré ce paiement (un agent, etc.)
+  // Qui a enregistré ce paiement
   recordedById String
-  recordedBy   User   @relation(fields: [recordedById], references: [id])
+  recordedBy   User   @relation("PaymentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([paymentDate])
+  @@index([method])
+  @@index([recordedById])
 }
 
-// Enum pour le type de passeport (déjà défini, on garde)
+// Enum pour le type de passeport
 enum PassportType {
   ORDINARY
   SERVICE
   DIPLOMATIC
 }
 
-// Enum pour le type de visa (déjà défini, on garde)
+// Enum pour le type de visa
 enum VisaType {
   SHORT_STAY
   LONG_STAY
@@ -242,29 +268,28 @@ enum VisaType {
   OTHER
 }
 
-// NOUVEL ENUM : Pour le genre
+// Enum pour le genre
 enum Gender {
   MALE
   FEMALE
   OTHER
 }
 
-// NOUVEL ENUM : Pour la situation familiale
+// Enum pour la situation familiale
 enum MaritalStatus {
   SINGLE
   MARRIED
   DIVORCED
   WIDOWED
-  OTHER // Au cas où
+  OTHER
 }
 
 model VisaRequestDetails {
   id String @id @default(uuid())
 
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur le demandeur
   personFirstName     String
   personLastName      String
   personGender        Gender
@@ -273,40 +298,39 @@ model VisaRequestDetails {
   personBirthPlace    String
   personMaritalStatus MaritalStatus
 
-  // Informations sur le passeport
   passportType           PassportType
   passportNumber         String
   passportIssuedBy       String
   passportIssueDate      DateTime
   passportExpirationDate DateTime
 
-  // Informations sur la profession du demandeur
   profession          String?
   employerAddress     String?
   employerPhoneNumber String?
 
-  // Informations sur le visa
   visaType         VisaType
   durationMonths   Int
   destinationState String?
 
-  // Informations sur l'expiration du visa
-  visaExpirationDate DateTime?
+  visaExpirationDate DateTime? // Date d'expiration du visa délivré
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([passportNumber])
+  @@index([personNationality])
 }
 
 enum BirthActRequestType {
-  NEWBORN // nouveau-né
-  RENEWAL // renouvellement
+  NEWBORN
+  RENEWAL
 }
 
 model BirthActRequestDetails {
   id String @id @default(uuid())
 
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   personFirstName   String
   personLastName    String
@@ -315,69 +339,67 @@ model BirthActRequestDetails {
   personNationality String
   personDomicile    String?
 
-  fatherFullName String // "Fils/Fille de :"
-  motherFullName String // "Et de"
+  fatherFullName String
+  motherFullName String
 
   requestType BirthActRequestType
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([personFirstName, personLastName])
+  @@index([personBirthDate])
 }
 
 enum JustificationDocumentType {
-  PASSPORT // Passeport
-  NATIONAL_ID_CARD // Carte Nationale d'Identité
-  BIRTH_CERTIFICATE // Acte de naissance
-  OTHER // Autre
+  PASSPORT
+  NATIONAL_ID_CARD
+  BIRTH_CERTIFICATE
+  OTHER
 }
 
 model ConsularCardRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur la personne concernée par la carte
-  personFirstName     String
-  personLastName      String
-  personBirthDate     DateTime
-  personBirthPlace    String
-  personProfession    String?
-  personNationality   String // Devrait être Tchadienne pour une carte consulaire tchadienne
-  personDomicile      String? // Adresse actuelle (en Côte d'Ivoire ou autre)
-  personAddressInChad String? // Adresse au Tchad (importante pour le retour)
+  personFirstName              String
+  personLastName               String
+  personBirthDate              DateTime
+  personBirthPlace             String
+  personProfession             String?
+  personNationality            String // Nationalité de la personne concernée par la carte
+  personDomicile               String?
+  personAddressInOriginCountry String? // Renommé pour être générique
 
-  // Informations sur les parents (si nécessaires pour l'acte de naissance joint)
-  fatherFullName String? // Optionnel si l'acte de naissance est déjà fourni
-  motherFullName String? // Optionnel
+  fatherFullName String?
+  motherFullName String?
 
-  // Pièce justificative utilisée pour la demande
-  justificationDocumentType   JustificationDocumentType? // Utilisation de l'Enum
-  justificationDocumentNumber String? // Numéro de cette pièce
+  justificationDocumentType   JustificationDocumentType?
+  justificationDocumentNumber String?
 
-  // Date d'expiration de la carte consulaire délivrée (si applicable)
-  // Une carte consulaire a généralement une date de validité.
-  cardExpirationDate DateTime?
+  cardExpirationDate DateTime? // Date d'expiration de la carte consulaire délivrée
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([personFirstName, personLastName])
+  @@index([personNationality])
 }
 
 enum AccompanyingDocumentType {
-  OLD_PASSPORT // Ancien passeport
-  CONSULAR_CARD // Carte consulaire
-  OTHER // Autre
+  OLD_PASSPORT
+  CONSULAR_CARD
+  OTHER
 }
 
 model LaissezPasserRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur la personne demandant le laissez-passer
   personFirstName   String
   personLastName    String
   personBirthDate   DateTime
@@ -386,34 +408,34 @@ model LaissezPasserRequestDetails {
   personNationality String
   personDomicile    String?
 
-  // Informations sur les parents (si nécessaires)
   fatherFullName String?
   motherFullName String?
 
-  // Destination et motif
-  destination  String? // "Se rendant à"
-  travelReason String? @db.Text // "Motif de voyage"
+  destination  String?
+  travelReason String? @db.Text
 
-  // Accompagnateur(s)
-  accompanied  Boolean       @default(false) // "Accompagné (e) de"
-  accompaniers Accompanier[]
+  accompanied  Boolean       @default(false)
+  accompaniers Accompanier[] // Correction : relation 1-à-plusieurs vers Accompanier
 
-  // Pièce justificative fournie (ancien passeport ou carte consulaire)
-  justificationDocumentType   JustificationDocumentType? // On réutilise l'Enum JustificationDocumentType
+  justificationDocumentType   JustificationDocumentType?
   justificationDocumentNumber String?
 
-  // Date de validité du Laissez-Passer délivré
-  laissezPasserExpirationDate DateTime // "Valable jusqu'au"
+  laissezPasserExpirationDate DateTime // Date de validité du Laissez-Passer délivré
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([personFirstName, personLastName])
+  @@index([personNationality])
 }
 
+// Renommé de Accompaniers à Accompanier pour respecter les conventions
 model Accompanier {
   id String @id @default(uuid())
 
-  requestId String                      @unique
-  request   LaissezPasserRequestDetails @relation(fields: [requestId], references: [id])
+  // Liaison vers la demande de laissez-passer (non unique pour 1-à-N)
+  laissezPasserRequestDetailsId String
+  laissezPasserRequestDetails   LaissezPasserRequestDetails @relation(fields: [laissezPasserRequestDetailsId], references: [id], onDelete: Cascade)
 
   firstName   String
   lastName    String
@@ -424,16 +446,16 @@ model Accompanier {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([laissezPasserRequestDetailsId])
 }
 
 model MarriageCapacityActRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur l'époux
   husbandFirstName   String
   husbandLastName    String
   husbandBirthDate   DateTime
@@ -441,7 +463,6 @@ model MarriageCapacityActRequestDetails {
   husbandNationality String
   husbandDomicile    String?
 
-  // Informations sur l'épouse
   wifeFirstName   String
   wifeLastName    String
   wifeBirthDate   DateTime
@@ -451,16 +472,17 @@ model MarriageCapacityActRequestDetails {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([husbandFirstName, husbandLastName])
+  @@index([wifeFirstName, wifeLastName])
 }
 
 model DeathActRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur le défunt
   deceasedFirstName   String
   deceasedLastName    String
   deceasedBirthDate   DateTime
@@ -469,40 +491,41 @@ model DeathActRequestDetails {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([deceasedFirstName, deceasedLastName])
+  @@index([deceasedDeathDate])
 }
 
 model PowerOfAttorneyRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur le mandataire (celui qui reçoit le pouvoir)
   agentFirstName                 String
   agentLastName                  String
   agentJustificationDocumentType JustificationDocumentType? @default(NATIONAL_ID_CARD)
-  agentIdDocumentNumber          String? // Numéro de pièce d'identité du mandataire
+  agentIdDocumentNumber          String?
   agentAddress                   String?
 
-  // Informations sur le mandant (celui qui donne le pouvoir)
   principalFirstName                 String
   principalLastName                  String
   principalJustificationDocumentType JustificationDocumentType? @default(NATIONAL_ID_CARD)
-  principalIdDocumentNumber          String? // Numéro de pièce d'identité du mandant
+  principalIdDocumentNumber          String?
   principalAddress                   String?
 
-  // Type de procuration (ex: vente immobilière, gestion bancaire, etc.)
-  powerOfType String? // Ou un Enum si les types sont fixes (ex: REAL_ESTATE, BANKING, etc.)
-
-  // Motif de la procuration
-  reason String? @db.Text
+  powerOfType String? // Nous laissons String? pour l'instant comme discuté.
+  reason      String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([agentFirstName, agentLastName])
+  @@index([principalFirstName, principalLastName])
 }
 
-enum ChadianParentRelationshipType {
+// Enum pour le lien de parenté avec le parent du pays d'origine (Tchad)
+enum OriginCountryParentRelationshipType {
   FATHER
   MOTHER
 }
@@ -510,24 +533,208 @@ enum ChadianParentRelationshipType {
 model NationalityCertificateRequestDetails {
   id String @id @default(uuid())
 
-  // Relation un-à-un avec la demande parente
   requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id])
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  // Informations sur la personne demandant le certificat de nationalité
   applicantFirstName   String
   applicantLastName    String
   applicantBirthDate   DateTime
   applicantBirthPlace  String
   applicantNationality String // Nationalité déclarée par le demandeur
 
-  // Informations sur le parent tchadien justifiant la nationalité
-  chadianParentFirstName String // Prénom du parent tchadien
-  chadianParentLastName  String // Nom du parent tchadien
-
-  // Lien de parenté avec le parent tchadien (Père ou Mère)
-  chadianParentRelationship ChadianParentRelationshipType // Utilisation de l'Enum
+  originCountryParentFirstName    String // Renommé
+  originCountryParentLastName     String // Renommé
+  originCountryParentRelationship OriginCountryParentRelationshipType // Renommé et utilise l'Enum
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([applicantFirstName, applicantLastName])
+  @@index([applicantNationality])
+}
+
+// Modèles pour le CMS
+model News {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  imageUrl  String?
+  published Boolean  @default(false)
+  authorId  String
+  author    User     @relation("AuthorNews", fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  eventDate   DateTime
+  location    String?
+  imageUrl    String?
+  published   Boolean  @default(false)
+  authorId    String
+  author      User     @relation("AuthorEvent", fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published])
+  @@index([eventDate])
+  @@index([authorId])
+}
+
+model Photo {
+  id          String   @id @default(uuid())
+  title       String?
+  description String?
+  imageUrl    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model Video {
+  id          String   @id @default(uuid())
+  title       String?
+  description String?
+  youtubeUrl  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+// Enum pour les catégories de dépenses (basé sur ton fichier Google Sheet)
+enum ExpenseCategory {
+  SALARIES // Salaires
+  GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
+  RENT // Loyers
+  INTERNET_COMM // Canal et Internet
+  UTILITIES // CIE et SODECI (Charges)
+  OTHER // Autre
+}
+
+model Expense {
+  id String @id @default(uuid())
+
+  amount      Float // Montant de la dépense
+  description String? // Description de la dépense (Description)
+  category    ExpenseCategory // Catégorie de la dépense
+
+  // Qui a exécuté/enregistré cette dépense (Exécuté par)
+  recordedById String
+  recordedBy   User   @relation("ExpenseRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  expenseDate DateTime // Date de la dépense (Date)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([expenseDate])
+  @@index([recordedById])
+}
+
+model Service {
+  id String @id @default(uuid())
+
+  type ServiceType @unique
+
+  name        String // Nom affiché du service (ex: "Demande de Visa", "Acte de Naissance")
+  description String? @db.Text // Description publique du service
+
+  defaultPrice Float
+
+  // Indique si le prix de ce service peut varier en fonction de sous-options (comme pour le visa)
+  isPriceVariable Boolean @default(false)
+
+  // Qui a mis à jour ce service pour la dernière fois
+  updatedById String?
+  updatedBy   User?   @relation("ServiceUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+model Setting {
+  id          String  @id @default(uuid())
+  key         String  @unique // Nom unique du paramètre (ex: "office_opening_hours", "support_email")
+  value       String // Valeur du paramètre (ex: "09:00 - 17:00", "support@ambassade.com")
+  description String? // Description pour aider à comprendre le paramètre
+
+  // Qui a mis à jour ce paramètre pour la dernière fois
+  updatedById String?
+  updatedBy   User?   @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+// Type de notification (catégorie)
+enum NotificationType {
+  SYSTEM // Notifications générées par le système (ex: compte activé, statut de demande)
+  PROMOTION // Notifications marketing/promotionnelles
+  REQUEST_UPDATE // Mises à jour du statut des demandes consulaires
+  ACCOUNT_UPDATE // Mises à jour du compte utilisateur (ex: mot de passe changé)
+}
+
+// Cible de la notification (qui doit la recevoir)
+enum NotificationTarget {
+  INDIVIDUAL // Pour un utilisateur spécifique
+  ALL_CLIENTS // Pour tous les utilisateurs de type DEMANDEUR
+  ALL_PERSONNEL // Pour tous les utilisateurs de type PERSONNEL
+  ROLE_ADMIN // Pour tous les utilisateurs ayant le rôle ADMIN
+  ROLE_AGENT // Pour tous les utilisateurs ayant le rôle AGENT
+  ROLE_CHEF_SERVICE // Pour tous les utilisateurs ayant le rôle CHEF_SERVICE
+  ROLE_CONSUL // Pour tous les utilisateurs ayant le rôle CONSUL
+}
+
+model NotificationSetting {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  requestUpdate Boolean @default(true)
+  promotions    Boolean @default(true)
+  system        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  title   String
+  message String           @db.Text
+  type    NotificationType
+  isRead  Boolean          @default(false)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  target NotificationTarget
+
+  icon        String
+  iconBgColor String
+  showChevron Boolean @default(false)
+
+  data Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
+  @@index([type, isRead])
+  @@index([createdAt])
 }

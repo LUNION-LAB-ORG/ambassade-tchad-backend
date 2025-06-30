@@ -1,10 +1,9 @@
-import { PaiementMode, PaiementStatus } from "@prisma/client";
-
+import { PaymentMethod } from "@prisma/client";
 export interface KkiapayResponse {
     performed_at: string
     type: "DEBIT" | "CREDIT",
-    status: PaiementStatus,
-    source: PaiementMode,
+    status: string,
+    source: PaymentMethod,
     source_common_name: string,
     amount: number,
     fees: number,
@@ -17,7 +16,7 @@ export interface KkiapayResponse {
     income: number,
     transactionId: string,
     performedAt: string,
-    client: {
+    demandeur: {
         fullname: string,
         phone: string,
         email: string

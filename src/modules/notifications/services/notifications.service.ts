@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
-import { NotificationType, NotificationTarget, Prisma } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Notification, NotificationType, NotificationTarget, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { UpdateNotificationDto } from '../dto/update-notification.dto';
@@ -14,18 +14,34 @@ export class NotificationsService {
     constructor(private readonly prisma: PrismaService) { }
 
     /**
-     * Créer une nouvelle notification
+     * Créer une nouvelle notification.
+     * @param createNotificationDto Les données de la notification à créer.
+     * @returns La notification créée.
      */
-    async create(createNotificationDto: CreateNotificationDto) {
+    async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
         const notification = await this.prisma.notification.create({
-            data: createNotificationDto,
+            data: {
+                title: createNotificationDto.title,
+                message: createNotificationDto.message,
+                type: createNotificationDto.type,
+                isRead: createNotificationDto.isRead ?? false,
+                target: createNotificationDto.target,
+                icon: createNotificationDto.icon,
+                iconBgColor: createNotificationDto.iconBgColor,
+                showChevron: createNotificationDto.showChevron ?? false,
+                data: createNotificationDto.data,
+                user: {
+                    connect: { id: createNotificationDto.userId }
+                }
+            },
         });
-
         return notification;
     }
 
     /**
-     * Obtenir toutes les notifications avec pagination et filtres
+     * Obtenir toutes les notifications avec pagination et filtres.
+     * @param query Les paramètres de requête pour le filtrage et la pagination.
+     * @returns Une réponse paginée contenant les notifications.
      */
     async findAll(query: QueryNotificationDto): Promise<QueryResponseDto<NotificationResponseDto>> {
         const page = Number(query.page ?? 1);
@@ -34,17 +50,17 @@ export class NotificationsService {
 
         const where: Prisma.NotificationWhereInput = {};
 
-        if (query.userId) where.user_id = query.userId;
+        if (query.userId) where.userId = query.userId;
         if (query.target) where.target = query.target;
         if (query.type) where.type = query.type;
-        if (query.isRead !== undefined) where.is_read = query.isRead;
+        if (query.isRead !== undefined) where.isRead = query.isRead;
 
         const [notifications, total] = await Promise.all([
             this.prisma.notification.findMany({
                 where,
                 skip,
                 take: limit,
-                orderBy: { created_at: 'desc' },
+                orderBy: { createdAt: 'desc' },
             }),
             this.prisma.notification.count({ where }),
         ]);
@@ -61,27 +77,35 @@ export class NotificationsService {
     }
 
     /**
-     * Obtenir les notifications d'un utilisateur spécifique
+     * Obtenir les notifications d'un utilisateur spécifique.
+     * @param query Les paramètres de requête pour le filtrage et la pagination (sans userId ni target).
+     * @param userId L'ID de l'utilisateur.
+     * @param target La cible de la notification (ex: INDIVIDUAL).
+     * @returns Une réponse paginée contenant les notifications de l'utilisateur.
      */
-    async findByUser(query: Omit<QueryNotificationDto, 'userId' | 'target'>, userId: string, target: NotificationTarget): Promise<QueryResponseDto<NotificationResponseDto>> {
+    async findByUser(
+        query: Omit<QueryNotificationDto, 'userId' | 'target'>,
+        userId: string,
+        target: NotificationTarget,
+    ): Promise<QueryResponseDto<NotificationResponseDto>> {
         const page = Number(query.page ?? 1);
         const limit = Number(query.limit ?? 10);
         const skip = (page - 1) * limit;
 
         const where: Prisma.NotificationWhereInput = {
-            user_id: userId,
+            userId: userId,
             target,
         };
 
         if (query.type) where.type = query.type;
-        if (query.isRead !== undefined) where.is_read = query.isRead;
+        if (query.isRead !== undefined) where.isRead = query.isRead;
 
         const [notifications, total] = await Promise.all([
             this.prisma.notification.findMany({
                 where,
                 skip,
                 take: limit,
-                orderBy: { created_at: 'desc' },
+                orderBy: { createdAt: 'desc' },
             }),
             this.prisma.notification.count({ where }),
         ]);
@@ -98,9 +122,12 @@ export class NotificationsService {
     }
 
     /**
-     * Obtenir une notification par son ID
+     * Obtenir une notification par son ID.
+     * @param id L'ID de la notification.
+     * @returns La notification trouvée.
+     * @throws NotFoundException si la notification n'est pas trouvée.
      */
-    async findOne(id: string) {
+    async findOne(id: string): Promise<Notification> {
         const notification = await this.prisma.notification.findUnique({
             where: { id },
         });
@@ -108,23 +135,25 @@ export class NotificationsService {
         if (!notification) {
             throw new NotFoundException('Notification non trouvée');
         }
-
         return notification;
     }
 
     /**
-     * Mettre à jour une notification
+     * Mettre à jour une notification.
+     * @param id L'ID de la notification à mettre à jour.
+     * @param updateNotificationDto Les données de mise à jour.
+     * @returns La notification mise à jour.
+     * @throws NotFoundException si la notification n'est pas trouvée.
      */
-    async update(id: string, updateNotificationDto: UpdateNotificationDto) {
+    async update(id: string, updateNotificationDto: UpdateNotificationDto): Promise<Notification> {
         try {
             const notification = await this.prisma.notification.update({
                 where: { id },
                 data: {
                     ...updateNotificationDto,
-                    updated_at: new Date(),
+                    updatedAt: new Date(),
                 },
             });
-
             return notification;
         } catch (error) {
             if (error.code === 'P2025') {
@@ -135,35 +164,41 @@ export class NotificationsService {
     }
 
     /**
-     * Marquer une notification comme lue
+     * Marquer une notification comme lue.
+     * @param id L'ID de la notification.
+     * @returns La notification mise à jour.
      */
-    async markAsRead(id: string) {
-        return this.update(id, { is_read: true });
+    async markAsRead(id: string): Promise<Notification> {
+        return this.update(id, { isRead: true });
     }
 
     /**
-     * Marquer une notification comme non lue
+     * Marquer une notification comme non lue.
+     * @param id L'ID de la notification.
+     * @returns La notification mise à jour.
      */
-    async markAsUnread(id: string) {
-        return this.update(id, { is_read: false });
+    async markAsUnread(id: string): Promise<Notification> {
+        return this.update(id, { isRead: false });
     }
 
     /**
-     * Marquer toutes les notifications d'un utilisateur comme lues
+     * Marquer toutes les notifications d'un utilisateur comme lues.
+     * @param userId L'ID de l'utilisateur.
+     * @param target La cible des notifications (ex: INDIVIDUAL).
+     * @returns Un objet contenant un message et le nombre de notifications mises à jour.
      */
-    async markAllAsReadByUser(userId: string, target: NotificationTarget) {
+    async markAllAsReadByUser(userId: string, target: NotificationTarget): Promise<{ message: string; count: number }> {
         const result = await this.prisma.notification.updateMany({
             where: {
-                user_id: userId,
+                userId: userId,
                 target,
-                is_read: false,
+                isRead: false,
             },
             data: {
-                is_read: true,
-                updated_at: new Date(),
+                isRead: true,
+                updatedAt: new Date(),
             },
         });
-
         return {
             message: `${result.count} notification(s) marquée(s) comme lue(s)`,
             count: result.count,
@@ -171,14 +206,16 @@ export class NotificationsService {
     }
 
     /**
-     * Supprimer une notification
+     * Supprimer une notification.
+     * @param id L'ID de la notification.
+     * @returns Un objet message.
+     * @throws NotFoundException si la notification n'est pas trouvée.
      */
-    async remove(id: string) {
+    async remove(id: string): Promise<{ message: string }> {
         try {
             await this.prisma.notification.delete({
                 where: { id },
             });
-
             return { message: 'Notification supprimée avec succès' };
         } catch (error) {
             if (error.code === 'P2025') {
@@ -189,16 +226,18 @@ export class NotificationsService {
     }
 
     /**
-     * Supprimer toutes les notifications d'un utilisateur
+     * Supprimer toutes les notifications d'un utilisateur.
+     * @param userId L'ID de l'utilisateur.
+     * @param target La cible des notifications (ex: INDIVIDUAL).
+     * @returns Un objet contenant un message et le nombre de notifications supprimées.
      */
-    async removeAllByUser(userId: string, target: NotificationTarget) {
+    async removeAllByUser(userId: string, target: NotificationTarget): Promise<{ message: string; count: number }> {
         const result = await this.prisma.notification.deleteMany({
             where: {
-                user_id: userId,
+                userId: userId,
                 target,
             },
         });
-
         return {
             message: `${result.count} notification(s) supprimée(s)`,
             count: result.count,
@@ -206,19 +245,22 @@ export class NotificationsService {
     }
 
     /**
-     * Obtenir les statistiques des notifications d'un utilisateur
+     * Obtenir les statistiques des notifications d'un utilisateur.
+     * @param userId L'ID de l'utilisateur.
+     * @param target La cible des notifications.
+     * @returns Les statistiques des notifications.
      */
     async getStatsByUser(userId: string, target: NotificationTarget): Promise<NotificationStatsDto> {
         const [total, unread, typeStats] = await Promise.all([
             this.prisma.notification.count({
-                where: { user_id: userId, target },
+                where: { userId: userId, target },
             }),
             this.prisma.notification.count({
-                where: { user_id: userId, target, is_read: false },
+                where: { userId: userId, target, isRead: false },
             }),
             this.prisma.notification.groupBy({
                 by: ['type'],
-                where: { user_id: userId, target },
+                where: { userId: userId, target },
                 _count: { type: true },
             }),
         ]);
@@ -232,23 +274,25 @@ export class NotificationsService {
             total,
             unread,
             read: total - unread,
-            by_type: byType,
+            byType: byType,
         };
     }
 
     /**
-     * Nettoyer les anciennes notifications (plus de X jours)
+     * Nettoyer les anciennes notifications (plus de X jours) qui sont lues.
+     * @param daysOld Le nombre de jours au-delà desquels les notifications lues sont supprimées.
+     * @returns Le nombre de notifications supprimées.
      */
-    async cleanupOldNotifications(daysOld: number = 30) {
+    async cleanupOldNotifications(daysOld: number = 30): Promise<{ message: string; count: number }> {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
         const result = await this.prisma.notification.deleteMany({
             where: {
-                created_at: {
+                createdAt: {
                     lt: cutoffDate,
                 },
-                is_read: true,
+                isRead: true,
             },
         });
 
@@ -259,34 +303,50 @@ export class NotificationsService {
     }
 
     /**
-       * Envoie une notification à plusieurs destinataires avec un template
-       */
-    async sendNotificationToMultiple<T>(
+     * Crée et enregistre plusieurs notifications en BDD basées sur un template et un contexte.
+     * Cette méthode ne gère PAS l'émission WebSocket, seulement la persistance.
+     * @param template Le template de notification à utiliser.
+     * @param context Le contexte de la notification (acteur, destinataires, données).
+     * @param notificationType Le type de notification (SYSTEM, PROMOTION, etc.).
+     * @param notificationTarget La cible de la notification (INDIVIDUAL, ALL_CLIENTS, ALL_PERSONNEL, etc.).
+     * @returns Un tableau des notifications créées.
+     */
+    async createAndSendMultiple<T>(
         template: NotificationTemplate<T>,
         context: NotificationContext<T>,
         notificationType: NotificationType,
-    ) {
-        const notifications = context.recipients.map(async recipient => {
-            const notificationContext = { ...context, currentRecipient: recipient };
+        notificationTarget: NotificationTarget,
+    ): Promise<Notification[]> {
+        const notificationsToCreate = context.recipients.map(recipient => {
+            const individualContext = { ...context, currentRecipient: recipient };
 
-            const notification = this.create({
-                title: template.title(notificationContext),
-                message: template.message(notificationContext),
+            return {
+                title: template.title(individualContext),
+                message: template.message(individualContext),
                 type: notificationType,
-                user_id: recipient.id,
-                target: this.getTargetFromRecipientType(recipient.type),
-                icon: template.icon(notificationContext),
-                icon_bg_color: template.iconBgColor(notificationContext),
-                show_chevron: template.showChevron || false,
-                data: context.meta
-            });
-            return notification;
+                isRead: false,
+                target: notificationTarget,
+                icon: template.icon(individualContext),
+                iconBgColor: template.iconBgColor(individualContext),
+                showChevron: template.showChevron || false,
+                data: context.data,
+                user: {
+                    connect: { id: recipient.id }
+                }
+            } as Prisma.NotificationCreateInput;
         });
 
-        return Promise.all(notifications);
-    }
+        const createdNotifications = await Promise.all(
+            notificationsToCreate.map(async notifData => {
+                try {
+                    return await this.prisma.notification.create({ data: notifData });
+                } catch (error) {
+                    console.error(`Erreur lors de la création d'une notification pour le destinataire ${notifData.user?.connect?.id || 'inconnu'}:`, error);
+                    return null;
+                }
+            })
+        );
 
-    private getTargetFromRecipientType(type: string): NotificationTarget {
-        return type === 'customer' ? NotificationTarget.CUSTOMER : NotificationTarget.USER;
+        return createdNotifications.filter(Boolean) as Notification[];
     }
 }

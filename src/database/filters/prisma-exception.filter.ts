@@ -69,7 +69,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
             return this.handleConnectionErrors(exception);
         }
 
-        // Erreurs Client P2xxx
+        // Erreurs Demandeur P2xxx
         if (code.startsWith('P2')) {
             return this.handleClientErrors(exception);
         }

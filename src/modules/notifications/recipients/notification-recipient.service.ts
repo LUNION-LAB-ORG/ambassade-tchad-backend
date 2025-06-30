@@ -1,158 +1,121 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/database/services/prisma.service";
-import { Prisma, UserRole, UserType, EntityStatus, Customer, User, Restaurant } from "@prisma/client";
-import { NotificationRecipient } from "../interfaces/notifications.interface";
+import { Prisma, User, Role, UserType, UserStatus } from "@prisma/client"; // Imports ajustés
+import { NotificationRecipient } from "../interfaces/notifications.interface"; // Interface ajustée
 
 @Injectable()
-export class NotificationRecipientService {
+export class NotificationRecipientService { // Renommé pour correspondre à notre convention
     constructor(private readonly prisma: PrismaService) { }
 
     /**
-     * Récupère tous les utilisateurs d'un restaurant
+     * Méthode interne pour mapper un objet User de Prisma vers notre interface NotificationRecipient.
+     * Cette méthode est essentielle pour uniformiser les données des destinataires.
+     * @param user L'objet User récupéré depuis Prisma.
+     * @returns Un objet NotificationRecipient.
      */
-    async getAllUsersByRestaurantAndRole(restaurantId?: string, roles?: UserRole[]): Promise<NotificationRecipient[]> {
-        const whereClause: Prisma.UserWhereInput = {
-            entity_status: EntityStatus.ACTIVE,
-            type: UserType.RESTAURANT,
+    private mapUserToNotificationRecipient(user: User): NotificationRecipient {
+        return {
+            id: user.id,
+            email: user.email,
+            type: user.type,
+            role: user.role, // Le rôle sera null pour les clients
+            firstName: user.firstName ?? undefined,
+            lastName: user.lastName ?? undefined,
+            phoneNumber: user.phoneNumber ?? undefined,
         };
-        if (restaurantId) {
-            whereClause.restaurant_id = restaurantId;
-        }
-        if (roles) {
-            whereClause.role = {
-                in: roles
-            };
-        }
-        const users = await this.prisma.user.findMany({
-            where: whereClause,
-            include: {
-                restaurant: true
-            }
-        });
-
-        return users.map(user => this.mapUserToNotificationRecipient(user));
-    }
-
-    async getManagerByRestaurant(restaurantId: string): Promise<NotificationRecipient[]> {
-        const managers = this.getAllUsersByRestaurantAndRole(restaurantId, [UserRole.MANAGER]);
-        return managers;
     }
 
     /**
-     * Récupère tous les managers d'un restaurant
+     * Récupère un utilisateur spécifique et le mappe en NotificationRecipient.
+     * @param userId L'ID de l'utilisateur à récupérer.
+     * @returns L'utilisateur mappé en NotificationRecipient.
+     * @throws NotFoundException si l'utilisateur n'est pas trouvé ou inactif.
      */
-    async getAllManagers(): Promise<NotificationRecipient[]> {
-        const managers = this.getAllUsersByRestaurantAndRole(undefined, [UserRole.MANAGER]);
-        return managers;
-    }
-
-    /**
-     * Récupère tous les utilisateurs des restaurants
-     */
-    async getAllUsersRestaurant(): Promise<NotificationRecipient[]> {
-        const users = this.getAllUsersByRestaurantAndRole(undefined, []);
-        return users;
-    }
-
-
-    /**
-    * Récupère tous les utilisateurs du back office
-    */
-    async getAllUsersByBackofficeAndRole(roles?: UserRole[]): Promise<NotificationRecipient[]> {
-        const whereClause: Prisma.UserWhereInput = {
-            entity_status: EntityStatus.ACTIVE,
-            type: UserType.BACKOFFICE,
-        };
-        if (roles) {
-            whereClause.role = {
-                in: roles
-            };
-        }
-        const users = await this.prisma.user.findMany({
-            where: whereClause,
-            include: {
-                restaurant: true
-            }
-        });
-
-        return users.map(user => this.mapUserToNotificationRecipient(user));
-    }
-
-    /**
-    * Récupère tous les clients
-    */
-    async getAllCustomers(): Promise<NotificationRecipient[]> {
-        const customers = await this.prisma.customer.findMany({
-            where: {
-                entity_status: EntityStatus.ACTIVE,
-                email: {
-                    not: null
-                }
-            },
-        });
-
-        return customers.map(customer => this.mapCustomerToNotificationRecipient(customer));
-    }
-
-    /**
-    * Récupère un clients
-    */
-    async getCustomer(customerId: string): Promise<NotificationRecipient> {
-        const customer = await this.prisma.customer.findUnique({
-            where: {
-                id: customerId,
-                entity_status: EntityStatus.ACTIVE,
-            },
-        });
-        if (!customer) {
-            throw new Error('Customer not found');
-        }
-        return this.mapCustomerToNotificationRecipient(customer);
-    }
-
-    async getUser(userId: string): Promise<NotificationRecipient> {
+    async getUserAsRecipient(userId: string): Promise<NotificationRecipient> {
         const user = await this.prisma.user.findUnique({
             where: {
                 id: userId,
-                entity_status: EntityStatus.ACTIVE,
+                status: UserStatus.ACTIVE,
             },
-            include: {
-                restaurant: true
-            }
         });
         if (!user) {
-            throw new Error('User not found');
+            throw new NotFoundException('Utilisateur non trouvé ou inactif');
         }
         return this.mapUserToNotificationRecipient(user);
     }
+
     /**
-     * Mapping Customer to NotificationRecipient
+     * Récupère tous les utilisateurs actifs d'un certain type (DEMANDEUR ou PERSONNEL)
+     * et optionnellement filtrés par rôle si le type est PERSONNEL.
+     * Cette méthode retourne des objets NotificationRecipient complets.
+     * @param userType Le type d'utilisateur à récupérer (DEMANDEUR ou PERSONNEL).
+     * @param roles Optionnel : Un tableau de rôles si userType est PERSONNEL.
+     * @returns Un tableau d'objets NotificationRecipient.
      */
-    mapCustomerToNotificationRecipient(customer: Customer): NotificationRecipient {
-        return {
-            id: customer.id,
-            type: 'customer',
-            name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
-            loyalty_level: customer.loyalty_level,
-            total_points: customer.total_points,
-            lifetime_points: customer.lifetime_points,
-            email: customer?.email ?? undefined,
-            phone: customer?.phone ?? undefined
+    async getActiveUsersAsRecipientsByTypeAndRoles(userType: UserType, roles?: Role[]): Promise<NotificationRecipient[]> {
+        const whereClause: Prisma.UserWhereInput = {
+            status: UserStatus.ACTIVE,
+            type: userType,
         };
+
+        if (userType === UserType.PERSONNEL && roles && roles.length > 0) {
+            whereClause.role = {
+                in: roles
+            };
+        }
+
+        const users = await this.prisma.user.findMany({
+            where: whereClause,
+        });
+
+        return users.map(user => this.mapUserToNotificationRecipient(user));
     }
+
     /**
-     * Mapping User to NotificationRecipient
+     * Récupère tous les clients actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les clients actifs.
      */
-    mapUserToNotificationRecipient(user: Prisma.UserGetPayload<{ include: { restaurant: true } }>): NotificationRecipient {
-        return {
-            id: user.id,
-            type: user.type === UserType.RESTAURANT ? 'restaurant_user' : 'backoffice_user',
-            role: user.role,
-            name: user.fullname,
-            email: user?.email ?? undefined,
-            phone: user?.phone ?? undefined,
-            restaurant_id: user.restaurant_id ?? undefined,
-            restaurant_name: user.restaurant?.name ?? undefined
-        };
+    async getAllActiveClientsAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.DEMANDEUR);
+    }
+
+    /**
+     * Récupère tous les membres du personnel actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les membres du personnel actifs.
+     */
+    async getAllActivePersonnelAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL);
+    }
+
+    /**
+     * Récupère tous les Administrateurs actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les administrateurs actifs.
+     */
+    async getAllActiveAdminsAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.ADMIN]);
+    }
+
+    /**
+     * Récupère tous les Chefs de Service actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les chefs de service actifs.
+     */
+    async getAllActiveChefServiceAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.CHEF_SERVICE]);
+    }
+
+    /**
+     * Récupère tous les Agents actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les agents actifs.
+     */
+    async getAllActiveAgentsAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.AGENT]);
+    }
+
+    /**
+     * Récupère tous les Consuls actifs en tant que destinataires de notification.
+     * @returns Un tableau de NotificationRecipient pour tous les consuls actifs.
+     */
+    async getAllActiveConsulsAsRecipients(): Promise<NotificationRecipient[]> {
+        return this.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.CONSUL]);
     }
 }

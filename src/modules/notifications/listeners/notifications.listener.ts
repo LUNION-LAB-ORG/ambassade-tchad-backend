@@ -9,7 +9,7 @@ export class NotificationsListener {
     // PAIEMENT
     @OnEvent('paiement.annule')
     async handlePaiementAnnule(payload: any) {
-        // TODO: Envoyer notification au client paiement annulé
+        // TODO: Envoyer notification au demandeur paiement annulé
         // await this.notificationSenderService.sendPaiementAnnuleNotification(
         //   payload.customer.id,
         //   payload.paiement_id,
@@ -19,16 +19,16 @@ export class NotificationsListener {
 
     @OnEvent('payment.completed')
     async handlePaymentCompleted(payload: { payment: any; order: any; customer: any }) {
-        await this.notificationSenderService.handlePaymentCompleted(
-            payload.payment,
-            payload.order,
-            payload.customer
-        );
+        // await this.notificationSenderService.handlePaymentCompleted(
+        //     payload.payment,
+        //     payload.order,
+        //     payload.customer
+        // );
     }
 
     @OnEvent('paiement.effectue')
     async handlePaiementEffectue(payload: any) {
-        // TODO: Envoyer notification au client paiement effectué
+        // TODO: Envoyer notification au demandeur paiement effectué
         // await this.notificationSenderService.sendPaiementEffectueNotification(
         //   payload.customer.id,
         //   payload.paiement_id,

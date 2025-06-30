@@ -1,22 +1,16 @@
-import { UserRole } from "@prisma/client";
+import { Role } from "@prisma/client"; 
 
-export const userGetRole = (role: UserRole) => {
+export const userGetRole = (role: Role) => {
     switch (role) {
-        case UserRole.ADMIN:
+        case Role.ADMIN:
             return 'Administrateur';
-        case UserRole.MARKETING:
-            return 'Agent Marketing';
-        case UserRole.COMPTABLE:
-            return 'Agent Comptable';
-        case UserRole.MANAGER:
-            return 'Manager';
-        case UserRole.CAISSIER:
-            return 'Agent Caissier';
-        case UserRole.CALL_CENTER:
-            return 'Agent Call Center';
-        case UserRole.CUISINE:
-            return 'Agent Cuisinier';
+        case Role.AGENT:
+            return 'Agent Consulaire';
+        case Role.CHEF_SERVICE:
+            return 'Chef de Service'; 
+        case Role.CONSUL:
+            return 'Consul'; 
         default:
-            return 'Inconnu';
+            return 'Rôle Inconnu';
     }
 }

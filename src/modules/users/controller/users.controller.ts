@@ -25,6 +25,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { JwtDemandeurAuthGuard } from 'src/modules/auth/guards/jwt-demandeur-auth.guard';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { Role, User, UserType } from '@prisma/client';
 import { UserRoles } from '../decorators/user-roles.decorator';
@@ -67,7 +68,7 @@ export class UsersController {
   @ApiBody({ type: CreateUserDto })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN)
+  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL)
   @Post()
   async create(
     @Req() req: Request,
@@ -76,7 +77,7 @@ export class UsersController {
     return this.usersService.create(req, createUserDto);
   }
 
-  @ApiOperation({ summary: "Obtenir les détails du profil de l'utilisateur connecté" })
+  @ApiOperation({ summary: "Obtenir les détails du profil d'un utilisateur" })
   @ApiOkResponse({
     description: 'Profil utilisateur récupéré avec succès',
     schema: { type: 'object' },
@@ -86,9 +87,9 @@ export class UsersController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('me')
-  detail(@Req() req: Request) {
-    return this.usersService.detail(req);
+  @Get(':id')
+  detail(@Param('id') userId: string): Promise<Omit<User, 'password'>> {
+    return this.usersService.detail(userId);
   }
 
   @ApiOperation({ summary: 'Obtenir la liste de tous les utilisateurs avec des options de filtrage et pagination (nécessite un rôle PERSONNEL)' })
@@ -103,7 +104,7 @@ export class UsersController {
     return this.usersService.findAll(queryDto);
   }
 
-  @ApiOperation({ summary: 'Mettre à jour le profil de l\'utilisateur connecté' })
+  @ApiOperation({ summary: 'Mettre à jour le profil de l\'utilisateur' })
   @ApiOkResponse({
     description: 'Profil utilisateur mis à jour avec succès.',
     schema: { type: 'object' },
@@ -116,6 +117,25 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async update(
+    @Req() req: Request,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(req, updateUserDto);
+  }
+
+  @ApiOperation({ summary: 'Mettre à jour le profil d\'un utilisateur demandeur' })
+  @ApiOkResponse({
+    description: 'Profil utilisateur mis à jour avec succès.',
+    schema: { type: 'object' },
+  })
+  @ApiBadRequestResponse({
+    description: 'Données de mise à jour invalides.',
+  })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiBearerAuth()
+  @UseGuards(JwtDemandeurAuthGuard)
+  @Patch('update/:id')
+  async updateClient(
     @Req() req: Request,
     @Body() updateUserDto: UpdateUserDto,
   ) {

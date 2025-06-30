@@ -60,7 +60,9 @@ export class UsersService {
 
     this.userEvent.userCreatedEvent({ actor: actor, user: newUser });
 
+    // Ommettre le mot de passe de la réponse
     const { password: omittedPassword, ...rest } = newUser;
+
     return { ...rest, generatedPassword: rawPassword };
   }
 
@@ -110,30 +112,30 @@ export class UsersService {
         contains: filters.phoneNumber,
       };
     }
-
-    const totalUsers = await this.prisma.user.count({
-      where: whereClause,
-    });
-
-    const users = await this.prisma.user.findMany({
-      where: whereClause,
-      skip: skip,
-      take: take,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phoneNumber: true,
-        type: true,
-        role: true,
-        status: true,
-        isPasswordChangeRequired: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const [totalUsers, users] = await Promise.all([
+      this.prisma.user.count({
+        where: whereClause,
+      }),
+      this.prisma.user.findMany({
+        where: whereClause,
+        skip: skip,
+        take: take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
+          type: true,
+          role: true,
+          status: true,
+          isPasswordChangeRequired: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
 
     return {
       data: users,
@@ -148,33 +150,22 @@ export class UsersService {
 
   /**
    * Récupère le profil de l'utilisateur connecté.
-   * @param req L'objet requête.
+   * @param userId L'ID de l'utilisateur.
    * @returns Le profil de l'utilisateur (sans le mot de passe).
    */
-  async detail(req: Request) {
-    const user = req.user as User;
+  async detail(userId: string) {
     const profile = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phoneNumber: true,
-        type: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        isPasswordChangeRequired: true,
-      },
+      where: { id: userId }
     });
 
     if (!profile) {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    return profile;
+    // Ommettre le mot de passe de la réponse
+    const { password, ...rest } = profile;
+
+    return rest;
   }
 
   /**
@@ -218,10 +209,8 @@ export class UsersService {
   async deactivate(req: Request, id: string) {
     const actor = req.user as User;
 
-    const userToDeactivate = await this.prisma.user.findUnique({ where: { id } });
-    if (!userToDeactivate) {
-      throw new NotFoundException('Utilisateur non trouvé.');
-    }
+    const userToDeactivate = await this.detail(id);
+
     if (userToDeactivate.status === UserStatus.INACTIVE) {
       throw new BadRequestException('L\'utilisateur est déjà désactivé.');
     }
@@ -249,10 +238,8 @@ export class UsersService {
   async activate(req: Request, id: string) {
     const actor = req.user as User;
 
-    const userToActivate = await this.prisma.user.findUnique({ where: { id } });
-    if (!userToActivate) {
-      throw new NotFoundException('Utilisateur non trouvé.');
-    }
+    const userToActivate = await this.detail(id);
+
     if (userToActivate.status === UserStatus.ACTIVE) {
       throw new BadRequestException('L\'utilisateur est déjà actif.');
     }
@@ -280,13 +267,10 @@ export class UsersService {
       throw new BadRequestException("Vous ne pouvez pas supprimer votre propre compte directement via cette route.");
     }
 
-    const userToDelete = await this.prisma.user.findUnique({ where: { id } });
-    if (!userToDelete) {
-      throw new NotFoundException('Utilisateur non trouvé.');
-    }
+    const userToDelete = await this.detail(id);
 
     const deletedUser = await this.prisma.user.delete({
-      where: { id: id },
+      where: { id: userToDelete.id },
     });
 
     this.userEvent.userDeletedEvent({ actor: actor, user: deletedUser });

@@ -4,7 +4,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { User, UserStatus } from '@prisma/client';
 
 @Injectable()
-export class JwtClientAuthGuard extends AuthGuard('jwt-demandeur') {
+export class JwtDemandeurAuthGuard extends AuthGuard('jwt-demandeur') {
   constructor() {
     super();
   }

@@ -15,8 +15,8 @@ import { RequestPasswordResetOtpDto } from '../dto/request-password-reset-otp.dt
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { JwtRefreshAuthGuard } from '../guards/jwt-refresh-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { JwtClientRefreshAuthGuard } from '../guards/jwt-demandeur-refresh-auth.guard';
-import { JwtClientAuthGuard } from '../guards/jwt-demandeur-auth.guard';
+import { JwtDemandeurRefreshAuthGuard } from '../guards/jwt-demandeur-refresh-auth.guard';
+import { JwtDemandeurAuthGuard } from '../guards/jwt-demandeur-auth.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -179,7 +179,7 @@ export class AuthController {
    * @param req L'objet de requête contenant l'utilisateur demandeur authentifié.
    * @returns Nouveau jeton d'accès.
    */
-  @UseGuards(JwtClientRefreshAuthGuard)
+  @UseGuards(JwtDemandeurRefreshAuthGuard)
   @Get('demandeur/refresh')
   @ApiBearerAuth()
   @ApiOperation({
@@ -240,7 +240,7 @@ export class AuthController {
    * @param req L'objet de requête contenant l'utilisateur demandeur authentifié.
    * @returns Les informations du profil du demandeur (sans le mot de passe).
    */
-  @UseGuards(JwtClientAuthGuard)
+  @UseGuards(JwtDemandeurAuthGuard)
   @Get('demandeur/profile')
   @ApiBearerAuth()
   @ApiOperation({

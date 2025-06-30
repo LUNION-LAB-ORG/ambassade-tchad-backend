@@ -5,7 +5,7 @@ import { User, UserStatus }
   from '@prisma/client';
 
 @Injectable()
-export class JwtClientRefreshAuthGuard extends AuthGuard('jwt-demandeur-refresh') {
+export class JwtDemandeurRefreshAuthGuard extends AuthGuard('jwt-demandeur-refresh') {
   constructor() {
     super();
   }

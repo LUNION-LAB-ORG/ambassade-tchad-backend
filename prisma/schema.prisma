@@ -180,9 +180,9 @@ model Request {
 model Document {
   id String @id @default(uuid())
 
-  fileName   String
-  mimeType   String
-  filePath   String
+  fileName   String // Nom du fichier
+  mimeType   String // Type MIME du fichier
+  filePath   String // Chemin du fichier
   fileSizeKB Int // Taille en Kilobytes
 
   requestId String
@@ -199,6 +199,7 @@ model Document {
   @@index([uploaderId])
 }
 
+// Historique des changements de statut d'une demande
 model RequestStatusHistory {
   id String @id @default(uuid())
 
@@ -229,6 +230,7 @@ enum PaymentMethod {
   OTHER
 }
 
+// Model pour les paiements effectués pour les demandes
 model Payment {
   id String @id @default(uuid())
 
@@ -298,19 +300,19 @@ model VisaRequestDetails {
   personBirthPlace    String
   personMaritalStatus MaritalStatus
 
-  passportType           PassportType
-  passportNumber         String
-  passportIssuedBy       String
-  passportIssueDate      DateTime
-  passportExpirationDate DateTime
+  passportType           PassportType // Type de passeport
+  passportNumber         String // Numéro du passeport
+  passportIssuedBy       String // Nom de l'ambassade qui a émis le passeport
+  passportIssueDate      DateTime // Date d'émission du passeport
+  passportExpirationDate DateTime // Date d'expiration du passeport
 
-  profession          String?
-  employerAddress     String?
-  employerPhoneNumber String?
+  profession          String? // Profession du demandeur
+  employerAddress     String? // Adresse de l'employeur
+  employerPhoneNumber String? // Numéro de téléphone de l'employeur
 
-  visaType         VisaType
-  durationMonths   Int
-  destinationState String?
+  visaType         VisaType // Type de visa
+  durationMonths   Int // Durée du visa en mois
+  destinationState String? // État de destination
 
   visaExpirationDate DateTime? // Date d'expiration du visa délivré
 
@@ -437,12 +439,12 @@ model Accompanier {
   laissezPasserRequestDetailsId String
   laissezPasserRequestDetails   LaissezPasserRequestDetails @relation(fields: [laissezPasserRequestDetailsId], references: [id], onDelete: Cascade)
 
-  firstName   String
-  lastName    String
-  birthDate   DateTime
-  birthPlace  String
-  nationality String
-  domicile    String?
+  firstName   String // Nom de l'accompagnant
+  lastName    String // Prénom de l'accompagnant
+  birthDate   DateTime // Date de naissance de l'accompagnant
+  birthPlace  String // Lieu de naissance de l'accompagnant
+  nationality String // Nationalité de l'accompagnant
+  domicile    String? // Lieu de résidence de l'accompagnant
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -554,6 +556,8 @@ model NationalityCertificateRequestDetails {
 }
 
 // Modèles pour le CMS
+
+// Actualités
 model News {
   id        String   @id @default(uuid())
   title     String
@@ -570,6 +574,7 @@ model News {
   @@index([createdAt])
 }
 
+// Evénements
 model Event {
   id          String   @id @default(uuid())
   title       String
@@ -588,6 +593,7 @@ model Event {
   @@index([authorId])
 }
 
+// Photos
 model Photo {
   id          String   @id @default(uuid())
   title       String?
@@ -599,6 +605,7 @@ model Photo {
   @@index([createdAt])
 }
 
+// Vidoes
 model Video {
   id          String   @id @default(uuid())
   title       String?
@@ -610,7 +617,7 @@ model Video {
   @@index([createdAt])
 }
 
-// Enum pour les catégories de dépenses (basé sur ton fichier Google Sheet)
+// Catégorie des dépenses
 enum ExpenseCategory {
   SALARIES // Salaires
   GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
@@ -620,6 +627,7 @@ enum ExpenseCategory {
   OTHER // Autre
 }
 
+// Dépenses
 model Expense {
   id String @id @default(uuid())
 
@@ -641,6 +649,7 @@ model Expense {
   @@index([recordedById])
 }
 
+// Services
 model Service {
   id String @id @default(uuid())
 
@@ -664,6 +673,7 @@ model Service {
   @@index([type])
 }
 
+// Paramètres
 model Setting {
   id          String  @id @default(uuid())
   key         String  @unique // Nom unique du paramètre (ex: "office_opening_hours", "support_email")
@@ -712,6 +722,7 @@ model NotificationSetting {
   updatedAt DateTime @updatedAt
 }
 
+// Notification
 model Notification {
   id String @id @default(uuid())
 

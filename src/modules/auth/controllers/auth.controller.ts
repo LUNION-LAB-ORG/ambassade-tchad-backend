@@ -27,6 +27,7 @@ import {
 import { LoginSuccessResponse, PreLoginResponse } from '../interfaces/auth.interface';
 import { Request } from 'express';
 import { User } from '@prisma/client';
+import { RegisterClientDto } from '../dto/register-demandeur.dto';
 
 @ApiTags('Authentification')
 @Controller('auth')
@@ -86,6 +87,22 @@ export class AuthController {
   })
   async completeLogin(@Body() completeOtpLoginDto: CompleteOtpLoginDto): Promise<LoginSuccessResponse> {
     return this.authService.completeLogin(completeOtpLoginDto);
+  }
+
+  @Post('register-client')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Inscription d\'un nouveau demandeur' })
+  @ApiBody({ type: RegisterClientDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Demandeur inscrit avec succès',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Un utilisateur avec cet email existe déjà',
+  })
+  registerClient(@Body() registerClientDto: RegisterClientDto): Promise<Omit<User, 'password'>> {
+    return this.authService.registerClient(registerClientDto);
   }
 
   /**

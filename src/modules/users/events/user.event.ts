@@ -19,6 +19,16 @@ export class UserEvent {
             payload
         );
     }
+    /**
+        * Émet un événement de la création d'un utilisateur (Demandeur ou Personnel).
+        * @param payload Contient l'acteur de l'action et l'utilisateur créé.
+        */
+    async userRegisteredEvent(payload: UserEventPayload) {
+        this.eventEmitter.emit(
+            'user.registered',
+            payload
+        );
+    }
 
     // La méthode 'memberCreatedEvent' est supprimée car sa logique est désormais
     // gérée par 'userCreatedEvent' en fonction du type d'utilisateur.

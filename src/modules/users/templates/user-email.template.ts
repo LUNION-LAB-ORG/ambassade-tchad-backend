@@ -1,129 +1,299 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, UserType } from "@prisma/client";
-import { EmailTemplate } from "src/modules/email/interfaces/email-template.interface";
-import { EmailComponentsService } from "src/modules/email/components/email.components.service";
+import { User, UserType, Role, OtpToken, UserStatus } from "@prisma/client"; // Importez UserStatus
+import { EmailTemplate } from "src/email/interfaces/email-template.interface";
+import { EmailComponentsService } from "src/email/components/email.components.service";
 import { ConfigService } from "@nestjs/config";
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { userGetRole } from "../constantes/user-get-role.constante";
-import { AssetsImages } from "src/common/constantes/assets.constante";
 
 @Injectable()
 export class UserEmailTemplates {
     constructor(
         private readonly emailComponentsService: EmailComponentsService,
-        private readonly configService: ConfigService) { }
+        private readonly configService: ConfigService
+    ) { }
+
+    private getBaseUrl(): string {
+        return this.configService.get<string>('FRONTEND_URL') ?? "https://portail.ambassade-tchad.com";
+    }
+
+    private getSupportEmail(): string {
+        return this.configService.get<string>('AMBASSADE_SUPPORT_EMAIL') ?? "support@ambassade-tchad.com";
+    }
 
     /**
-     * NOUVEL UTILISATEUR (Notification pour les administrateurs/managers)
+     * E-MAIL 1: ACCUEIL DES NOUVEAUX UTILISATEURS (Demandeurs et Personnel)
+     * Déclencheur: `UsersService.create` (pour le personnel) ou `AuthService.registerClient` (pour le demandeur - si vous décidez d'envoyer un mail ici).
+     * Objet: Indiquer la création d'un compte et les premières étapes.
      */
-    // NEW_USER: EmailTemplate<
-    //     {
-    //         actor: Prisma.UserGetPayload<{ include: { restaurant: true } }>,
-    //         user: Prisma.UserGetPayload<{ include: { restaurant: true } }>
-    //     }> = {
-    //         subject: (ctx) => `🎉 Nouvel utilisateur ${ctx.data.user.fullname} a rejoint l'équipe Ambassade Tchad !`,
-    //         content: (ctx) => {
-    //             const userRole = userGetRole(ctx.data.user.role);
-    //             const actorRole = userGetRole(ctx.data.actor.role);
 
-    //             const emailContent = [
-    //                 this.emailComponentsService.HeroSection(
-    //                     `Nouvel utilisateur : ${ctx.data.user.fullname}`,
-    //                     `Un nouveau membre a rejoint l'équipe Ambassade Tchad !`,
-    //                 ),
-    //                 this.emailComponentsService.Message(
-    //                     `Nous avons le plaisir de vous informer que ${ctx.data.user.fullname} (${ctx.data.user.email}) a été ajouté en tant que ${userRole} par ${ctx.data.actor.fullname} (${actorRole}).`
-    //                 ),
-    //                 this.emailComponentsService.Summary([
-    //                     { label: 'Nom Complet', value: ctx.data.user.fullname ?? "Non renseigné" },
-    //                     { label: 'Email', value: ctx.data.user.email ?? "Non renseigné" },
-    //                     { label: 'Rôle', value: userRole ?? "Non renseigné" },
-    //                     { label: 'Créé par', value: ctx.data.actor.fullname ?? "Non renseigné" },
-    //                 ]),
-    //                 ctx.data.user.restaurant ? this.emailComponentsService.RestaurantInfo('Restaurant Associé', [
-    //                     { label: 'Nom du restaurant', value: ctx.data.user.restaurant?.name ?? "Non renseigné" },
-    //                     { label: 'Adresse', value: ctx.data.user.restaurant?.address ?? "Non renseigné" },
-    //                 ]) : '',
-    //                 this.emailComponentsService.CtaButton('Accéder au tableau de bord', this.configService.get<string>('FRONTEND_URL') ?? ""),
-    //                 this.emailComponentsService.Alert('Assurez-vous que le nouvel utilisateur dispose des accès nécessaires.', 'info'),
-    //             ].filter(Boolean).join('\n');
+    WELCOME_NEW_USER: EmailTemplate<{
+        user: User; // L'utilisateur nouvellement créé
+        temporaryPassword?: string; // Mot de passe temporaire si généré par l'administration (pour le personnel)
+        actor?: User; // L'administrateur ou membre du personnel ayant créé le compte (pour le personnel)
+    }> = {
+            subject: (ctx) => `Confirmation de la Création de Votre Compte - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+            content: (ctx) => {
+                const userTypeLabel = ctx.data.user.type === UserType.DEMANDEUR
+                    ? 'Demandeur de Services'
+                    : userGetRole(ctx.data.user.role as Role); // Le rôle sera présent si PERSONNEL
 
-    //             return emailContent;
-    //         }
-    //     };
+                const emailBody = [
+                    this.emailComponentsService.HeroSection(
+                        `Bienvenue sur la plateforme de l'Ambassade du Tchad`,
+                        `Nous sommes honorés de vous compter parmi nos utilisateurs, ${ctx.data.user.firstName ?? 'cher concitoyen'} !`
+                    ),
+                    this.emailComponentsService.Message(
+                        `Nous avons le plaisir de vous informer que votre compte a été créé avec succès sous l'adresse e-mail : <strong>${ctx.data.user.email}</strong>.`
+                    ),
+                    ctx.data.actor ? this.emailComponentsService.Message(
+                        `Cette création a été effectuée par ${ctx.data.actor.firstName ?? 'un membre du personnel'} ${ctx.data.actor.lastName ?? ''}.`
+                    ) : '',
+                    this.emailComponentsService.Message(
+                        `En tant que **${userTypeLabel}**, vous disposez désormais d'un accès complet aux fonctionnalités dédiées. Nous vous invitons à explorer les divers services proposés.`
+                    ),
+                    ctx.data.temporaryPassword ? this.emailComponentsService.InfoBox(
+                        `Votre mot de passe temporaire est : <strong>${ctx.data.temporaryPassword}</strong>.<br>Pour des raisons de sécurité, nous vous prions de bien vouloir le modifier lors de votre première connexion.`,
+                        '🔑'
+                    ) : '',
+                    this.emailComponentsService.CtaButton('Accéder à la Plateforme', this.getBaseUrl()),
+                    this.emailComponentsService.Divider(),
+                    this.emailComponentsService.Message(
+                        `Notre équipe de support reste à votre entière disposition pour toute assistance requise.`
+                    ),
+                    this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+                ].filter(Boolean).join('\n');
+
+                return this.emailComponentsService.GlassCard(emailBody, 'Détails de Votre Compte');
+            }
+        };
 
     /**
-     * NOUVEAU MEMBRE (pour le restaurant manager quand un agent rejoint son équipe)
+     * E-MAIL 2: DEMANDE DE RÉINITIALISATION DE MOT DE PASSE
+     * Déclencheur: `AuthService.requestPasswordResetOtp`.
+     * Objet: Fournir les instructions et le code pour réinitialiser le mot de passe.
      */
-    // NEW_MEMBER: EmailTemplate<
-    //     {
-    //         actor: Prisma.UserGetPayload<{ include: { restaurant: true } }>,
-    //         user: Prisma.UserGetPayload<{ include: { restaurant: true } }>
-    //     }> = {
-    //         subject: (ctx) => `Un nouveau membre a rejoint votre équipe : ${ctx.data.user.fullname} !`,
-    //         content: (ctx) => {
-    //             const userRole = userGetRole(ctx.data.user.role);
-    //             const actorName = ctx.data.actor.fullname ?? 'Manager';
+    PASSWORD_RESET_REQUEST: EmailTemplate<{ user: User, otpToken: OtpToken }> = {
+        subject: (ctx) => `Procédure de Réinitialisation de Votre Mot de Passe - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+        content: (ctx) => {
+            // Le lien pour la réinitialisation du mot de passe doit inclure le token et l'email.
+            const resetLink = `${this.getBaseUrl()}/auth/reinitialisation-mot-de-passe?code=${ctx.data.otpToken.code}&email=${encodeURIComponent(ctx.data.user.email)}`;
+            const expirationTime = format(ctx.data.otpToken.expire, 'dd MMMM يَفّب à HH:mm', { locale: fr });
 
-    //             const emailContent = [
-    //                 this.emailComponentsService.Greeting(`Bonjour ${ctx.data.user.restaurant?.name ?? 'Cher Manager'}`, '👋'),
-    //                 this.emailComponentsService.Message(
-    //                     `Nous sommes ravis de vous informer que ${ctx.data.user.fullname} a rejoint votre équipe en tant qu'${userRole} pour le restaurant ${ctx.data.user.restaurant?.name ?? "Non renseigné"}.`
-    //                 ),
-    //                 this.emailComponentsService.Summary([
-    //                     { label: 'Nom du nouveau membre', value: ctx.data.user.fullname ?? "Non renseigné" },
-    //                     { label: 'Email', value: ctx.data.user.email ?? "Non renseigné" },
-    //                     { label: 'Rôle', value: userRole ?? "Non renseigné" },
-    //                     { label: 'Ajouté par', value: actorName },
-    //                 ]),
-    //                 this.emailComponentsService.InfoBox(
-    //                     `Ce nouvel agent fait désormais partie de votre équipe. Vous pouvez gérer ses permissions et son profil depuis votre tableau de bord restaurant.`,
-    //                     '💡'
-    //                 ),
-    //                 this.emailComponentsService.CtaButton('Accéder au tableau de bord', this.configService.get<string>('FRONTEND_URL') ?? ""),
-    //             ].join('\n');
+            const emailBody = [
+                this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
+                this.emailComponentsService.Message(
+                    `Nous avons bien reçu votre requête de réinitialisation de mot de passe pour le compte associé à l'adresse e-mail : <strong>${ctx.data.user.email}</strong>.`
+                ),
+                this.emailComponentsService.InfoBox(
+                    `Votre code de vérification est : <strong>${ctx.data.otpToken.code}</strong>.<br>Ce code est valable jusqu'au ${expirationTime} (heure d'Abidjan).`,
+                    '⏰'
+                ),
+                this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', resetLink),
+                this.emailComponentsService.Message(
+                    `Si cette demande n'émane pas de votre part, nous vous prions d'ignorer cet e-mail. Votre mot de passe actuel demeurera inchangé.`
+                ),
+                this.emailComponentsService.Divider(),
+                this.emailComponentsService.Message(
+                    `Pour toute assistance supplémentaire, veuillez contacter notre service de support.`
+                ),
+                this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+            ].filter(Boolean).join('\n');
 
-    //             return emailContent;
-    //         }
-    //     };
+            return this.emailComponentsService.GlassCard(emailBody, 'Réinitialisation de Mot de Passe');
+        }
+    };
 
     /**
-     * BIENVENUE À L'UTILISATEUR (pour l'utilisateur nouvellement créé)
+     * E-MAIL 3: CONFIRMATION DE CHANGEMENT DE MOT DE PASSE
+     * Déclencheur: `AuthService.resetPassword`.
+     * Objet: Confirmer que le mot de passe a été modifié avec succès.
      */
-    // WELCOME_USER: EmailTemplate<{
-    //     actor: Prisma.UserGetPayload<{ include: { restaurant: true } }>,
-    //     user: Prisma.UserGetPayload<{ include: { restaurant: true } }>
-    // }> = {
-    //         subject: (ctx) => `🎉 Bienvenue à bord, ${ctx.data.user.fullname} !`,
-    //         content: (ctx) => {
-    //             const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? "";
-    //             const userRole = userGetRole(ctx.data.user.role);
-    //             const companyName = ctx.data.user.type == UserType.BACKOFFICE ? "Ambassade Tchad" : ctx.data.user.restaurant?.name ?? "Non renseigné";
+    PASSWORD_CHANGED_SUCCESS: EmailTemplate<{ user: User }> = {
+        subject: (ctx) => `Confirmation de la Modification de Votre Mot de Passe - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+        content: (ctx) => {
+            const emailBody = [
+                this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
+                this.emailComponentsService.Alert(
+                    `Nous vous confirmons que le mot de passe de votre compte <strong>${ctx.data.user.email}</strong> a été modifié avec succès.`,
+                    'success'
+                ),
+                this.emailComponentsService.Message(
+                    `Si vous n'êtes pas à l'origine de cette modification, nous vous prions de contacter notre service de support sans délai. Votre sécurité est notre priorité absolue.`
+                ),
+                this.emailComponentsService.CtaButton('Accéder à Votre Compte', this.getBaseUrl()),
+                this.emailComponentsService.Divider(),
+                this.emailComponentsService.Message(
+                    `Notre équipe est à votre disposition pour toute question ou préoccupation.`
+                ),
+                this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+            ].filter(Boolean).join('\n');
 
-    //             const emailContent = [
-    //                 this.emailComponentsService.HeroSection(
-    //                     `Bienvenue chez ${companyName} !`,
-    //                     `Nous sommes ravis de vous compter parmi nous, ${ctx.data.user.fullname} !`
-    //                 ),
-    //                 this.emailComponentsService.Message(
-    //                     `Votre compte ${ctx.data.user.email} a été créé en tant que ${userRole}. Vous êtes maintenant prêt à explorer toutes les fonctionnalités de notre plateforme.`
-    //                 ),
-    //                 ctx.data.user.restaurant ? this.emailComponentsService.RestaurantInfo('Votre Restaurant', [
-    //                     { label: 'Nom', value: ctx.data.user.restaurant?.name ?? "Non renseigné" },
-    //                     { label: 'Adresse', value: ctx.data.user.restaurant?.address ?? "Non renseigné" },
-    //                 ]) : '',
-    //                 this.emailComponentsService.ToastNotification(
-    //                     `Votre rôle est : ${userRole}. Si vous avez des questions, n'hésitez pas à nous contacter.`,
-    //                     'info'
-    //                 ),
-    //                 this.emailComponentsService.CtaButton('Se connecter maintenant', frontendUrl),
-    //                 this.emailComponentsService.Divider(),
-    //                 this.emailComponentsService.Message(
-    //                     `Si vous rencontrez des difficultés pour vous connecter ou avez des questions, notre équipe de support est là pour vous aider.`,
-    //                 ),
-    //                 this.emailComponentsService.Button('Contacter le support', this.configService.get<string>('AMBASSADE_TCHAD_SUPPORT') ? `mailto:${this.configService.get<string>('AMBASSADE_TCHAD_SUPPORT')}` : frontendUrl),
-    //             ].join('\n');
+            return this.emailComponentsService.GlassCard(emailBody, 'Modification de Mot de Passe Confirmée');
+        }
+    };
 
-    //             return emailContent;
-    //         }
-    //     };
+    /**
+     * E-MAIL 4: MISE À JOUR DU STATUT DU COMPTE
+     * Déclencheur: `UsersService.deactivate` ou `UsersService.activate`.
+     * Objet: Informer l'utilisateur d'un changement de statut de son compte (actif/inactif).
+     */
+    ACCOUNT_STATUS_UPDATE: EmailTemplate<{
+        user: User; // L'utilisateur dont le statut a été mis à jour
+        oldStatus: UserStatus; // Ancien statut (utilisez l'enum pour la clarté)
+        newStatus: UserStatus; // Nouveau statut (utilisez l'enum pour la clarté)
+        reason?: string; // Raison du changement (optionnel)
+        adminUser?: User; // L'administrateur ayant effectué l'action (optionnel)
+    }> = {
+            subject: (ctx) => `Notification de Mise à Jour du Statut de Votre Compte - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+            content: (ctx) => {
+                // Traduction des statuts pour l'affichage
+                const oldStatusTranslated = this.translateUserStatus(ctx.data.oldStatus);
+                const newStatusTranslated = this.translateUserStatus(ctx.data.newStatus);
+
+                const emailBody = [
+                    this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
+                    this.emailComponentsService.Alert(
+                        `Le statut de votre compte utilisateur <strong>${ctx.data.user.email}</strong> a été mis à jour de <strong>${oldStatusTranslated}</strong> à <strong>${newStatusTranslated}</strong>.`,
+                        ctx.data.newStatus === UserStatus.ACTIVE ? 'success' : 'warning'
+                    ),
+                    ctx.data.reason ? this.emailComponentsService.Message(
+                        `<strong>Raison de cette mise à jour :</strong> ${ctx.data.reason}`
+                    ) : '',
+                    ctx.data.adminUser ? this.emailComponentsService.Message(
+                        `Cette modification a été effectuée par ${ctx.data.adminUser.firstName ?? 'un administrateur'} ${ctx.data.adminUser.lastName ?? ''}.`
+                    ) : '',
+                    this.emailComponentsService.CtaButton('Accéder à Mon Compte', this.getBaseUrl()),
+                    this.emailComponentsService.Divider(),
+                    this.emailComponentsService.Message(
+                        `Pour toute clarification, nous vous invitons à contacter notre service de support.`
+                    ),
+                    this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+                ].filter(Boolean).join('\n');
+
+                return this.emailComponentsService.GlassCard(emailBody, 'Statut de Votre Compte Mis à Jour');
+            }
+        };
+
+    /**
+     * E-MAIL 5: MISE À JOUR DU PROFIL UTILISATEUR
+     * Déclencheur: `UsersService.update` (lorsque des champs du profil sont modifiés).
+     * Objet: Informer l'utilisateur des modifications apportées à son profil.
+     */
+    ACCOUNT_PROFILE_UPDATED: EmailTemplate<{
+        user: User; // L'utilisateur dont le profil a été mis à jour
+        updatedBy?: User; // L'utilisateur (ou l'administrateur) ayant effectué la modification (optionnel)
+        // updatedFields: string[]; // Retiré car difficile à suivre précisément sans comparaison avant/après
+    }> = {
+            subject: (ctx) => `Mise à Jour de Votre Profil Utilisateur - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+            content: (ctx) => {
+                const emailBody = [
+                    this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
+                    this.emailComponentsService.Alert(
+                        `Nous tenons à vous informer que votre profil utilisateur associé à l'adresse <strong>${ctx.data.user.email}</strong> a été mis à jour.`,
+                        'info'
+                    ),
+                    this.emailComponentsService.Message(
+                        `Cette modification a été effectuée.`
+                    ),
+                    // Nous omettons la liste des champs exacts pour simplifier le DTO,
+                    // car `UsersService.update` renvoie directement l'utilisateur mis à jour,
+                    // sans la liste des champs changés.
+                    // Si cette liste est cruciale, le service devrait la construire.
+                    ctx.data.updatedBy ? this.emailComponentsService.Message(
+                        `Par : ${ctx.data.updatedBy.firstName ?? 'un utilisateur'} ${ctx.data.updatedBy.lastName ?? ''}.`
+                    ) : '',
+                    this.emailComponentsService.CtaButton('Accéder à Mon Profil', `${this.getBaseUrl()}/profil`),
+                    this.emailComponentsService.Divider(),
+                    this.emailComponentsService.Message(
+                        `Si cette modification n'a pas été initiée par vous, nous vous prions de nous contacter immédiatement.`
+                    ),
+                    this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+                ].filter(Boolean).join('\n');
+
+                return this.emailComponentsService.GlassCard(emailBody, 'Mise à Jour de Votre Profil');
+            }
+        };
+
+    /**
+     * E-MAIL 6: COMPTE UTILISATEUR VERROUILLÉ
+     * Déclencheur: (Logic de sécurité externe, par ex. suite à trop de tentatives de connexion échouées).
+     * Objet: Informer l'utilisateur que son compte a été temporairement verrouillé.
+     */
+    USER_ACCOUNT_LOCKED: EmailTemplate<{ user: User }> = {
+        subject: (ctx) => `Notification de Verrouillage Temporaire de Votre Compte - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
+        content: (ctx) => {
+            const emailBody = [
+                this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
+                this.emailComponentsService.Alert(
+                    `Nous vous informons que votre compte <strong>${ctx.data.user.email}</strong> a été temporairement verrouillé suite à de multiples tentatives de connexion infructueuses.`,
+                    'error'
+                ),
+                this.emailComponentsService.Message(
+                    `Cette mesure est appliquée dans un souci de sécurité afin de protéger vos informations. Le verrouillage est généralement temporaire et sera automatiquement levé après une brève période.`,
+                ),
+                this.emailComponentsService.Message(
+                    `Si le problème persiste, vous avez la possibilité de réinitialiser votre mot de passe ou de contacter notre service de support.`
+                ),
+                this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', `${this.getBaseUrl()}/auth/mot-de-passe-oublie`),
+                this.emailComponentsService.Divider(),
+                this.emailComponentsService.Message(
+                    `Si ces tentatives de connexion ne proviennent pas de votre part, nous vous prions de nous contacter immédiatement.`
+                ),
+                this.emailComponentsService.Button('Contacter le Service d\'Assistance', `mailto:${this.getSupportEmail()}`, 'outline'),
+            ].filter(Boolean).join('\n');
+
+            return this.emailComponentsService.GlassCard(emailBody, 'Compte Verrouillé');
+        }
+    };
+
+    /**
+     * E-MAIL 7: MISE À JOUR DU RÔLE DU PERSONNEL
+     * Déclencheur: `UsersService.update` (lorsqu'un administrateur modifie le rôle d'un membre du personnel).
+     * Objet: Informer un membre du personnel que son rôle a été modifié.
+     */
+    PERSONNEL_ROLE_UPDATED: EmailTemplate<{
+        user: User; // Le membre du personnel dont le rôle a été mis à jour
+        oldRole: Role | null; // L'ancien rôle
+        newRole: Role; // Le nouveau rôle
+        adminUser?: User; // L'administrateur ayant effectué l'action (optionnel)
+    }> = {
+            subject: (ctx) => `Mise à Jour de Votre Rôle au Sein de l'Ambassade du Tchad`,
+            content: (ctx) => {
+                const emailBody = [
+                    this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'membre du personnel'},`),
+                    this.emailComponentsService.Alert(
+                        `Nous vous informons que votre rôle sur la plateforme de l'Ambassade du Tchad a été modifié.`,
+                        'info'
+                    ),
+                    this.emailComponentsService.Summary([
+                        { label: 'Ancien rôle', value: userGetRole(ctx.data.oldRole as Role) },
+                        { label: 'Nouveau rôle', value: userGetRole(ctx.data.newRole) },
+                    ]),
+                    ctx.data.adminUser ? this.emailComponentsService.Message(
+                        `Cette mise à jour a été effectuée par ${ctx.data.adminUser.firstName ?? 'un administrateur'} ${ctx.data.adminUser.lastName ?? ''}.`
+                    ) : '',
+                    this.emailComponentsService.Message(
+                        `Vos accès et permissions au sein du système ont été ajustés en conséquence. Nous vous invitons à consulter le tableau de bord pour prendre connaissance des changements.`
+                    ),
+                    this.emailComponentsService.CtaButton('Accéder au Tableau de Bord', `${this.getBaseUrl()}/tableau-de-bord`),
+                    this.emailComponentsService.Divider(),
+                    this.emailComponentsService.Message(
+                        `Pour toute question relative à cette modification, nous vous prions de contacter un administrateur système.`
+                    ),
+                ].filter(Boolean).join('\n');
+
+                return this.emailComponentsService.GlassCard(emailBody, 'Mise à Jour de Votre Rôle Professionnel');
+            }
+        };
+
+    // --- Fonctions utilitaires internes au service de template pour la traduction ---
+    private translateUserStatus(status: UserStatus): string {
+        switch (status) {
+            case UserStatus.ACTIVE: return 'Actif';
+            case UserStatus.INACTIVE: return 'Inactif';
+            default: return status;
+        }
+    }
 }

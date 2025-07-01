@@ -1,18 +1,8 @@
-import { UserType, Role } from "@prisma/client";
-
-export interface NotificationRecipient {
-    id: string;
-    email: string;
-    type: UserType;
-    role?: Role | null;
-    firstName?: string;
-    lastName?: string;
-    phoneNumber?: string | null;
-}
+import { User } from "@prisma/client";
 
 export interface NotificationContext<T> {
-    actor: NotificationRecipient;
-    recipients: NotificationRecipient[];
+    actor: User;
+    recipients: User[];
     data: T;
 }
 

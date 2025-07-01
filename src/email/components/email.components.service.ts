@@ -10,6 +10,7 @@ export class EmailComponentsService {
   private get theme(): EmailTheme {
     return this.emailThemeService.theme;
   }
+
   /**
    * Header avec logo et slogan
    */

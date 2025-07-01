@@ -6,11 +6,23 @@ import { UserType, UserStatus, User } from '@prisma/client'; // Ajout de Role
 import { PrismaService } from 'src/database/services/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
-import { OtpService } from 'src/modules/otp/otp.service';
+import { OtpService } from 'src/otp/otp.service';
 import { LoginDto } from '../dto/login.dto';
 import { LoginSuccessResponse, PreLoginResponse } from '../interfaces/auth.interface';
 import { TwilioService } from 'src/twilio/services/twilio.service';
 import { RegisterClientDto } from '../dto/register-demandeur.dto';
+
+//- DEMANDEUR : 
+// 1. INSCRIPTION (nom, prenom, email, mot de passe, numero de telephone) 
+// 2. CONNEXION (email, mot de passe) -> RECEVOIR OTP
+// 3. VERIFIER OTP
+// 4. GENERER JWT (ACCESS TOKEN ET REFRESH TOKEN) ET CONNECTÉ
+
+//- PERSONNEL, ADMIN (CRÉÉ PAR LE SEED) : 
+// 1. ADMIN CREER LES COMPTES DU PERSONNEL (role, nom, prenom, email, numero de telephone, mot de passe généré) 
+// 2. ADMIN ENVOIE LES ACCES AUX MEMBRES (email, mot de passe) 
+// 3. MEMBRE CONNEXION (email, mot de passe) -> MODIFIER LA PREMIERE FOIS SON MOT DE PASSE
+// 4. MEMBRE GENERER JWT (ACCESS TOKEN ET REFRESH TOKEN) ET CONNECTÉ
 
 @Injectable()
 export class AuthService {
@@ -28,7 +40,7 @@ export class AuthService {
     * @returns Un objet indiquant que l'OTP a été envoyé.
     * @throws ConflictException si un utilisateur avec cet email existe déjà.
     */
-  async registerClient(registerClientDto: RegisterClientDto): Promise<{ message: string, user: Omit<User, 'password'> }> {
+  async registerClient(registerClientDto: RegisterClientDto): Promise<Omit<User, 'password'>> {
     const { email, password, firstName, lastName, phoneNumber } = registerClientDto;
 
     // 1. Vérifier si l'utilisateur existe déjà
@@ -60,10 +72,7 @@ export class AuthService {
 
     const { password: passwordUser, ...restUser } = newUser;
 
-    return {
-      message: 'Un code OTP a été envoyé à votre numéro de téléphone',
-      user: restUser
-    }
+    return restUser;
   }
 
   /**
@@ -270,7 +279,7 @@ export class AuthService {
    * @returns L'utilisateur personnel.
    * @throws UnauthorizedException si l'utilisateur n'est pas trouvé ou inactif.
    */
-  async getProfile(userId: string, userType: UserType): Promise<User> {
+  async getProfile(userId: string, userType: UserType): Promise<Omit<User, 'password'>> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, status: UserStatus.ACTIVE, type: userType },
     });
@@ -278,7 +287,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Utilisateur non trouvé ou inactif');
     }
+    const { password, ...restUser } = user;
 
-    return user;
+    return restUser;
   }
 }

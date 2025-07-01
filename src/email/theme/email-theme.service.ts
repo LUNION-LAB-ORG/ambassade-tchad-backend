@@ -1,31 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { EmailTheme } from '../interfaces/email-theme.interface'; // Assurez-vous que le chemin est correct
+import { EmailTheme } from '../interfaces/email-theme.interface';
 
 @Injectable()
 export class EmailThemeService {
   public readonly theme: EmailTheme = {
     colors: {
-      primary: '#f27922',
-      secondary: '#f7931e',
-      accent: '#ff8c42',
-      background: '#ffffff',
-      surface: '#f8fafc',
+      primary: '#1e3a8a', // #1e3a8a ≈ bleu foncé
+      secondary: '#f26522', // #f26522 ≈ orange vif
+      accent: '#f4f4f5', // #f4f4f5 ≈ gris clair
+      background: '#ffffff', // #ffffff ≈ blanc
+      surface: '#f8fafc', // inchangé
       text: {
-        primary: '#1a202c',
-        secondary: '#4a5568',
-        muted: '#718096',
-        inverse: '#ffffff',
+        primary: '#0a0a0a', // #0a0a0a ≈ noir très foncé
+        secondary: '#6b7280', // #6b7280 ≈ gris moyen
+        muted: '#a0aec0', // #a0aec0 ≈ gris clair
+        inverse: '#ffffff', // #ffffff ≈ blanc
       },
       status: {
-        success: '#10b981',
-        warning: '#f59e0b',
-        error: '#ef4444',
-        info: '#3b82f6',
+        success: '#10b981', // #10b981 ≈ vert foncé
+        warning: '#f59e0b', // #f59e0b ≈ orange vif
+        error: '#ef4444', // #ef4444 ≈ rouge vif
+        info: '#3b82f6', // #3b82f6 ≈ bleu foncé
       },
       gradients: {
-        primary: 'linear-gradient(135deg, #f27922 0%, #f7931e 100%)',
-        secondary: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        accent: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+        primary: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', // #1e3a8a ≈ bleu foncé
+        secondary: 'linear-gradient(135deg, #f26522 0%, #fcbf49 100%)', // #f26522 ≈ orange vif
+        accent: 'linear-gradient(135deg, #f4f4f5 0%, #e5e7eb 100%)', // #f4f4f5 ≈ gris clair
       },
     },
     typography: {

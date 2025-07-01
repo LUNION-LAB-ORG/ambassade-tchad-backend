@@ -39,7 +39,7 @@ import { QueryResponseDto } from 'src/common/dto/query-response.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  @ApiOperation({ summary: 'Créer un nouvel utilisateur du personnel (nécessite un rôle ADMIN)' })
+  @ApiOperation({ summary: 'Créer un nouvel utilisateur du personnel' })
   @ApiCreatedResponse({
     description: 'Utilisateur du personnel créé avec succès. Le mot de passe initial est généré.',
     schema: {

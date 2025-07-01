@@ -1,8 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { AppGateway } from "src/socket-io/gateways/app.gateway";
 import { Notification } from "@prisma/client";
-import { NotificationRecipient } from "../interfaces/notifications.interface";
-import { UserType, Role } from '@prisma/client';
+import { UserType, Role, User } from '@prisma/client';
 
 @Injectable()
 export class NotificationsWebSocketService {
@@ -13,12 +12,13 @@ export class NotificationsWebSocketService {
      * La logique de groupe est gérée au niveau de AppGateway.
      * @param notification L'objet notification à envoyer (généralement un enregistrement de la BDD).
      * @param recipient L'objet destinataire (un utilisateur spécifique, utilisé pour déterminer le type d'émission individuelle si groupTarget n'est pas spécifié).
-     * @param groupTarget Optionnel. Indique s'il faut cibler un groupe (ex: 'all_personnel', 'role_admin', 'all_clients')
+     * @param groupTarget Optionnel. Indique s'il faut cibler un groupe (ex: 'all_personnel', 'role_admin', 'all_demandeurs')
      * Si omis ou non reconnu, envoie à l'utilisateur `recipient` individuellement.
      */
-    emitNotification(notification: Notification, recipient: NotificationRecipient, groupTarget?: 'all_personnel' | 'role_admin' | 'role_agent' | 'role_chef_service' | 'role_consul' | 'all_clients') {
 
-        const { id: recipientId, type: recipientType, role: recipientRole } = recipient;
+    emitNotification(notification: Notification, recipient: User, groupTarget?: 'all_personnel' | 'role_admin' | 'role_agent' | 'role_chef_service' | 'role_consul' | 'all_demandeurs') {
+
+        const { id: recipientId, type: recipientType } = recipient;
 
         // Émission basée sur le type de groupe cible ou l'individu
         if (groupTarget === 'all_personnel') {
@@ -32,7 +32,7 @@ export class NotificationsWebSocketService {
             } else {
                 console.warn(`[WebSocket] Rôle non valide '${roleString}' pour émission groupée.`);
             }
-        } else if (groupTarget === 'all_clients') {
+        } else if (groupTarget === 'all_demandeurs') {
             this.appGateway.emitToUserTypeGroup('clients', 'notification:new', notification);
             console.log(`[WebSocket] Notification émise à tous les clients pour l'événement 'notification:new'.`);
         } else {

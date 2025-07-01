@@ -12,7 +12,7 @@ export async function userSeed() {
       // Administrateur du Back-Office
       firstName: 'Admin',
       lastName: 'Principal', // Ajout du lastName
-      email: 'admin@ambassade.com', // Email générique pour la réutilisabilité
+      email: 'andersonkouadio0109@gmail.com', // Email générique pour la réutilisabilité
       password: 'Admin@2025', // Sera haché
       type: UserType.PERSONNEL, // Changé de BACKOFFICE à PERSONNEL
       role: Role.ADMIN, // Changé de UserRole.ADMIN à Role.ADMIN

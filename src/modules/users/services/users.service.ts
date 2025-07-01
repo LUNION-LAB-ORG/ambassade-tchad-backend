@@ -58,6 +58,7 @@ export class UsersService {
       },
     });
 
+    // Émet un événement de la création d'un utilisateur
     this.userEvent.userCreatedEvent({ actor: actor, user: newUser });
 
     // Ommettre le mot de passe de la réponse

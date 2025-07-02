@@ -58,9 +58,6 @@ export class UsersService {
       },
     });
 
-    // Émet un événement de la création d'un utilisateur
-    this.userEvent.userCreatedEvent({ actor: actor, user: newUser });
-
     // Ommettre le mot de passe de la réponse
     const { password: omittedPassword, ...rest } = newUser;
 
@@ -224,7 +221,6 @@ export class UsersService {
       data: { status: UserStatus.INACTIVE },
     });
 
-    this.userEvent.userDeactivatedEvent({ actor: actor, user: deactivatedUser });
     return deactivatedUser;
   }
 
@@ -250,7 +246,6 @@ export class UsersService {
       data: { status: UserStatus.ACTIVE },
     });
 
-    this.userEvent.userActivatedEvent({ actor: actor, user: activatedUser });
     return activatedUser;
   }
 
@@ -273,8 +268,6 @@ export class UsersService {
     const deletedUser = await this.prisma.user.delete({
       where: { id: userToDelete.id },
     });
-
-    this.userEvent.userDeletedEvent({ actor: actor, user: deletedUser });
 
     return deletedUser;
   }

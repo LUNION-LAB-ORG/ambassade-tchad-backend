@@ -14,8 +14,12 @@ export class UserEmailTemplates {
         private readonly configService: ConfigService
     ) { }
 
-    private getBaseUrl(): string {
+    private getFrontendUrl(): string {
         return this.configService.get<string>('FRONTEND_URL') ?? "https://portail.ambassade-tchad.com";
+    }
+
+    private getBackofficeUrl(): string {
+        return this.configService.get<string>('BACKOFFICE_URL') ?? "https://ambassade-tchad-dashboard.vercel.app";
     }
 
     private getSupportEmail(): string {
@@ -57,7 +61,8 @@ export class UserEmailTemplates {
                         `Votre mot de passe temporaire est : <strong>${ctx.data.temporaryPassword}</strong>.<br>Pour des raisons de sécurité, nous vous prions de bien vouloir le modifier lors de votre première connexion.`,
                         '🔑'
                     ) : '',
-                    this.emailComponentsService.CtaButton('Accéder à la Plateforme', this.getBaseUrl()),
+                    ctx.data.user.type === UserType.DEMANDEUR ? this.emailComponentsService.CtaButton('Accéder à la Plateforme', this.getFrontendUrl()) : '',
+                    ctx.data.user.type === UserType.PERSONNEL ? this.emailComponentsService.CtaButton('Accéder à la Plateforme', this.getBackofficeUrl()) : '',
                     this.emailComponentsService.Divider(),
                     this.emailComponentsService.Message(
                         `Notre équipe de support reste à votre entière disposition pour toute assistance requise.`
@@ -78,8 +83,13 @@ export class UserEmailTemplates {
         subject: (ctx) => `Procédure de Réinitialisation de Votre Mot de Passe - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
         content: (ctx) => {
             // Le lien pour la réinitialisation du mot de passe doit inclure le token et l'email.
-            const resetLink = `${this.getBaseUrl()}/auth/reinitialisation-mot-de-passe?code=${ctx.data.otpToken.code}&email=${encodeURIComponent(ctx.data.user.email)}`;
-            const expirationTime = format(ctx.data.otpToken.expire, 'dd MMMM يَفّب à HH:mm', { locale: fr });
+            let resetLink;
+
+            if (ctx.data.user.type === UserType.DEMANDEUR) {
+                resetLink = `${this.getFrontendUrl()}/auth/reinitialisation-mot-de-passe?code=${ctx.data.otpToken.code}&email=${encodeURIComponent(ctx.data.user.email)}`;
+            } else {
+                resetLink = `${this.getBackofficeUrl()}/auth/reinitialisation-mot-de-passe?code=${ctx.data.otpToken.code}&email=${encodeURIComponent(ctx.data.user.email)}`;
+            }
 
             const emailBody = [
                 this.emailComponentsService.Greeting(`Cher ${ctx.data.user.firstName ?? 'utilisateur'},`),
@@ -87,7 +97,7 @@ export class UserEmailTemplates {
                     `Nous avons bien reçu votre requête de réinitialisation de mot de passe pour le compte associé à l'adresse e-mail : <strong>${ctx.data.user.email}</strong>.`
                 ),
                 this.emailComponentsService.InfoBox(
-                    `Votre code de vérification est : <strong>${ctx.data.otpToken.code}</strong>.<br>Ce code est valable jusqu'au ${expirationTime} (heure d'Abidjan).`,
+                    `Votre code de vérification est : <strong>${ctx.data.otpToken.code}</strong>.`,
                     '⏰'
                 ),
                 this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', resetLink),
@@ -122,7 +132,8 @@ export class UserEmailTemplates {
                 this.emailComponentsService.Message(
                     `Si vous n'êtes pas à l'origine de cette modification, nous vous prions de contacter notre service de support sans délai. Votre sécurité est notre priorité absolue.`
                 ),
-                this.emailComponentsService.CtaButton('Accéder à Votre Compte', this.getBaseUrl()),
+                ctx.data.user.type === UserType.DEMANDEUR ? this.emailComponentsService.CtaButton('Accéder à Votre Compte', this.getFrontendUrl()) : '',
+                ctx.data.user.type === UserType.PERSONNEL ? this.emailComponentsService.CtaButton('Accéder à Votre Compte', this.getBackofficeUrl()) : '',
                 this.emailComponentsService.Divider(),
                 this.emailComponentsService.Message(
                     `Notre équipe est à votre disposition pour toute question ou préoccupation.`
@@ -144,7 +155,7 @@ export class UserEmailTemplates {
         oldStatus: UserStatus; // Ancien statut (utilisez l'enum pour la clarté)
         newStatus: UserStatus; // Nouveau statut (utilisez l'enum pour la clarté)
         reason?: string; // Raison du changement (optionnel)
-        adminUser?: User; // L'administrateur ayant effectué l'action (optionnel)
+        actor?: User; // L'administrateur ayant effectué l'action (optionnel)
     }> = {
             subject: (ctx) => `Notification de Mise à Jour du Statut de Votre Compte - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
             content: (ctx) => {
@@ -161,10 +172,11 @@ export class UserEmailTemplates {
                     ctx.data.reason ? this.emailComponentsService.Message(
                         `<strong>Raison de cette mise à jour :</strong> ${ctx.data.reason}`
                     ) : '',
-                    ctx.data.adminUser ? this.emailComponentsService.Message(
-                        `Cette modification a été effectuée par ${ctx.data.adminUser.firstName ?? 'un administrateur'} ${ctx.data.adminUser.lastName ?? ''}.`
+                    ctx.data.actor ? this.emailComponentsService.Message(
+                        `Cette modification a été effectuée par ${ctx.data.actor.firstName ?? 'un administrateur'} ${ctx.data.actor.lastName ?? ''}.`
                     ) : '',
-                    this.emailComponentsService.CtaButton('Accéder à Mon Compte', this.getBaseUrl()),
+                    ctx.data.user.type === UserType.DEMANDEUR ? this.emailComponentsService.CtaButton('Accéder à Mon Compte', this.getFrontendUrl()) : '',
+                    ctx.data.user.type === UserType.PERSONNEL ? this.emailComponentsService.CtaButton('Accéder à Mon Compte', this.getBackofficeUrl()) : '',
                     this.emailComponentsService.Divider(),
                     this.emailComponentsService.Message(
                         `Pour toute clarification, nous vous invitons à contacter notre service de support.`
@@ -183,7 +195,7 @@ export class UserEmailTemplates {
      */
     ACCOUNT_PROFILE_UPDATED: EmailTemplate<{
         user: User; // L'utilisateur dont le profil a été mis à jour
-        updatedBy?: User; // L'utilisateur (ou l'administrateur) ayant effectué la modification (optionnel)
+        actor?: User; // L'utilisateur (ou l'administrateur) ayant effectué la modification (optionnel)
         // updatedFields: string[]; // Retiré car difficile à suivre précisément sans comparaison avant/après
     }> = {
             subject: (ctx) => `Mise à Jour de Votre Profil Utilisateur - ${this.configService.get<string>('AMBASSADE_NAME') ?? "Ambassade du Tchad"}`,
@@ -194,17 +206,11 @@ export class UserEmailTemplates {
                         `Nous tenons à vous informer que votre profil utilisateur associé à l'adresse <strong>${ctx.data.user.email}</strong> a été mis à jour.`,
                         'info'
                     ),
-                    this.emailComponentsService.Message(
-                        `Cette modification a été effectuée.`
-                    ),
-                    // Nous omettons la liste des champs exacts pour simplifier le DTO,
-                    // car `UsersService.update` renvoie directement l'utilisateur mis à jour,
-                    // sans la liste des champs changés.
-                    // Si cette liste est cruciale, le service devrait la construire.
-                    ctx.data.updatedBy ? this.emailComponentsService.Message(
-                        `Par : ${ctx.data.updatedBy.firstName ?? 'un utilisateur'} ${ctx.data.updatedBy.lastName ?? ''}.`
+                    ctx.data.actor ? this.emailComponentsService.Message(
+                        `Cette modification a été effectuée par : ${ctx.data.actor.firstName ?? 'un utilisateur'} ${ctx.data.actor.lastName ?? ''}.`
                     ) : '',
-                    this.emailComponentsService.CtaButton('Accéder à Mon Profil', `${this.getBaseUrl()}/profil`),
+                    ctx.data.user.type === UserType.DEMANDEUR ? this.emailComponentsService.CtaButton('Accéder à Mon Profil', `${this.getFrontendUrl()}/profil`) : '',
+                    ctx.data.user.type === UserType.PERSONNEL ? this.emailComponentsService.CtaButton('Accéder à Mon Profil', `${this.getBackofficeUrl()}/profil`) : '',
                     this.emailComponentsService.Divider(),
                     this.emailComponentsService.Message(
                         `Si cette modification n'a pas été initiée par vous, nous vous prions de nous contacter immédiatement.`
@@ -236,7 +242,8 @@ export class UserEmailTemplates {
                 this.emailComponentsService.Message(
                     `Si le problème persiste, vous avez la possibilité de réinitialiser votre mot de passe ou de contacter notre service de support.`
                 ),
-                this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', `${this.getBaseUrl()}/auth/mot-de-passe-oublie`),
+                ctx.data.user.type === UserType.DEMANDEUR ? this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', `${this.getFrontendUrl()}/auth/mot-de-passe-oublie`) : '',
+                ctx.data.user.type === UserType.PERSONNEL ? this.emailComponentsService.CtaButton('Réinitialiser Mon Mot de Passe', `${this.getBackofficeUrl()}/auth/mot-de-passe-oublie`) : '',
                 this.emailComponentsService.Divider(),
                 this.emailComponentsService.Message(
                     `Si ces tentatives de connexion ne proviennent pas de votre part, nous vous prions de nous contacter immédiatement.`
@@ -277,7 +284,7 @@ export class UserEmailTemplates {
                     this.emailComponentsService.Message(
                         `Vos accès et permissions au sein du système ont été ajustés en conséquence. Nous vous invitons à consulter le tableau de bord pour prendre connaissance des changements.`
                     ),
-                    this.emailComponentsService.CtaButton('Accéder au Tableau de Bord', `${this.getBaseUrl()}/tableau-de-bord`),
+                    this.emailComponentsService.CtaButton('Accéder au Tableau de Bord', `${this.getBackofficeUrl()}/tableau-de-bord`),
                     this.emailComponentsService.Divider(),
                     this.emailComponentsService.Message(
                         `Pour toute question relative à cette modification, nous vous prions de contacter un administrateur système.`

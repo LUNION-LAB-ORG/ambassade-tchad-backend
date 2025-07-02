@@ -4,9 +4,9 @@ import { User, UserType, Role, UserStatus, NotificationTarget, NotificationType 
 import { IEmailService } from 'src/email/interfaces/email-service.interface';
 import { UserEmailTemplates } from '../templates/user-email.template';
 import { UserNotificationsTemplate } from '../templates/user-notifications.template';
-import { NotificationRecipientService } from 'src/notifications/recipients/notification-recipient.service';
 import { NotificationsWebSocketService } from 'src/notifications/websockets/notifications-websocket.service';
 import { NotificationsService } from 'src/notifications/services/notifications.service';
+import { PrismaService } from 'src/database/services/prisma.service'; // Directement injecté
 
 @Injectable()
 export class UserListenerService {
@@ -14,179 +14,173 @@ export class UserListenerService {
 
     constructor(
         @Inject('EMAIL_SERVICE') private readonly emailService: IEmailService,
+        private readonly prisma: PrismaService, // PrismaService pour la récupération des utilisateurs
         private readonly userEmailTemplates: UserEmailTemplates,
         private readonly userNotificationsTemplate: UserNotificationsTemplate,
-        private readonly notificationRecipientService: NotificationRecipientService,
         private readonly notificationsWebSocketService: NotificationsWebSocketService,
         private readonly notificationsService: NotificationsService,
-    ) {}
+    ) { }
 
     /**
-     * Handles the 'user.created' event.
-     * Sends welcome emails and notifications (WebSocket and DB) to relevant parties.
+     * Gère l'événement `user.created` déclenché après la création d'un utilisateur.
+     * Envoie un e-mail de bienvenue et des notifications (WebSocket et BDD) aux parties concernées.
      */
     @OnEvent('user.created')
     async handleUserCreatedEvent(payload: {
         actor: User;
         user: User;
-        temporaryPassword?: string; // Present if a STAFF account was created by an admin
+        temporaryPassword?: string; // Présent si un compte PERSONNEL a été créé par un administrateur
     }) {
         const { actor, user, temporaryPassword } = payload;
 
         try {
-            // Retrieve the newly created user as a recipient.
-            // Note: getUserAsRecipient now returns full User object, including password.
-            const newlyCreatedUserRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
+            // L'utilisateur nouvellement créé est le destinataire direct pour les communications individuelles
+            // Pas besoin de le "mapper" à nouveau car il est déjà un objet User valide.
 
-            // 1. Send welcome email to the new user.
+            // 1. Envoi de l'e-mail de bienvenue au nouvel utilisateur
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.WELCOME_NEW_USER,
                 {
-                    recipients: [newlyCreatedUserRecipient.email],
-                    data: { 
-                        user: newlyCreatedUserRecipient, 
-                        temporaryPassword: temporaryPassword, 
-                        actor: actor 
+                    recipients: [user.email],
+                    data: { // Structure pour le template d'e-mail
+                        user: user,
+                        temporaryPassword: temporaryPassword,
+                        actor: actor
                     },
                 },
             );
 
-            // 2. Send welcome WebSocket notification to the new user.
+            // 2. Envoi de la notification WebSocket de bienvenue au nouvel utilisateur.
             const welcomeNotification = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.WELCOME_USER,
-                { 
-                    recipients: [newlyCreatedUserRecipient], 
-                    data: { user: newlyCreatedUserRecipient, temporaryPasswordSet: !!temporaryPassword }, 
-                    actor: actor 
+                {
+                    recipients: [user], // L'utilisateur lui-même est le destinataire
+                    data: { user: user, temporaryPasswordSet: !!temporaryPassword }, // Structure pour le template de notification
                 },
                 NotificationType.SYSTEM,
                 NotificationTarget.INDIVIDUAL
             );
             if (welcomeNotification.length > 0) {
-                // Ensure to pass the full User object for the recipient here as per NotificationsWebSocketService
-                this.notificationsWebSocketService.emitNotification(welcomeNotification[0], newlyCreatedUserRecipient);
+                this.notificationsWebSocketService.emitNotification(welcomeNotification[0], user);
             }
 
-            // 3. Send temporary password WebSocket notification (if applicable for STAFF users).
+            // 3. Notification WebSocket pour le mot de passe temporaire (spécifique au personnel si mot de passe généré)
             if (user.type === UserType.PERSONNEL && temporaryPassword) {
                 const tempPwdNotification = await this.notificationsService.createAndSendMultiple(
                     this.userNotificationsTemplate.TEMPORARY_PASSWORD_SET,
-                    { 
-                        recipients: [newlyCreatedUserRecipient], 
-                        data: { user: newlyCreatedUserRecipient }, 
-                        actor: actor 
+                    {
+                        recipients: [user], // L'utilisateur lui-même
+                        data: { user: user }, // Structure pour le template de notification
                     },
                     NotificationType.SYSTEM,
                     NotificationTarget.INDIVIDUAL
                 );
                 if (tempPwdNotification.length > 0) {
-                    // Ensure to pass the full User object for the recipient here as per NotificationsWebSocketService
-                    this.notificationsWebSocketService.emitNotification(tempPwdNotification[0], newlyCreatedUserRecipient);
+                    this.notificationsWebSocketService.emitNotification(tempPwdNotification[0], user);
                 }
             }
 
-            // 4. Send notifications to relevant personnel (Admins/Agents) about the new user.
-            const adminRecipients = await this.notificationRecipientService.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.ADMIN]);
-            const agentRecipients = await this.notificationRecipientService.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.AGENT]);
+            // 4. Notifications au personnel (Administrateurs/Chefs de Service) concernant la création du nouvel utilisateur.
+            // On récupère tous les utilisateurs PERSONNEL avec les rôles ADMIN ou CHEF_SERVICE
+            const relevantPersonnelForNotification = await this.prisma.user.findMany({
+                where: {
+                    type: UserType.PERSONNEL,
+                    role: {
+                        in: [Role.ADMIN, Role.CHEF_SERVICE, Role.AGENT] // Inclure les agents ici s'ils doivent être notifiés des nouveaux demandeurs
+                    },
+                    status: UserStatus.ACTIVE
+                }
+            });
 
-            let relevantPersonnelRecipients: User[] = [];
-            let notificationTarget: NotificationTarget=NotificationTarget.INDIVIDUAL;
+            let targetGroup: NotificationTarget = NotificationTarget.INDIVIDUAL; // Valeur par défaut
+            let filteredRecipients: User[] = [];
 
             if (user.type === UserType.DEMANDEUR) {
-                // Agents are notified of new applicant registrations.
-                relevantPersonnelRecipients = agentRecipients;
-                notificationTarget = NotificationTarget.ROLE_AGENT;
+                // Les agents (et admins/chefs si configuré) sont notifiés des nouvelles inscriptions des demandeurs.
+                filteredRecipients = relevantPersonnelForNotification;
+                targetGroup = NotificationTarget.ALL_PERSONNEL; // Ou ROLE_AGENT si vous voulez être plus spécifique
             } else if (user.type === UserType.PERSONNEL) {
-                // Admins are notified of new staff account creations (excluding the new user if they are an admin themselves).
-                relevantPersonnelRecipients = adminRecipients.filter(admin => admin.id !== user.id);
-                notificationTarget = NotificationTarget.ROLE_ADMIN;
+                // Les administrateurs et chefs de service sont notifiés des nouvelles créations de personnel.
+                // On filtre pour exclure l'utilisateur qui vient d'être créé s'il fait partie de ce groupe.
+                filteredRecipients = relevantPersonnelForNotification.filter(p => p.id !== user.id && (p.role === Role.ADMIN || p.role === Role.CHEF_SERVICE));
+                targetGroup = NotificationTarget.ROLE_ADMIN; // Ou ROLE_CHEF_SERVICE si vous avez une distinction
             }
 
-            if (relevantPersonnelRecipients.length > 0) {
-                const newUserNotification = await this.notificationsService.createAndSendMultiple(
+            if (filteredRecipients.length > 0) {
+                const newUserNotificationForPersonnel = await this.notificationsService.createAndSendMultiple(
                     this.userNotificationsTemplate.NEW_USER_CREATED_FOR_ADMIN,
-                    { 
-                        recipients: relevantPersonnelRecipients, 
-                        data: { user: newlyCreatedUserRecipient, actor: actor }, 
-                        actor: actor 
+                    {
+                        recipients: filteredRecipients,
+                        data: { user: user, actor: actor }, // Structure pour le template de notification
                     },
                     NotificationType.SYSTEM,
-                    notificationTarget
+                    targetGroup // La cible de groupe appropriée
                 );
 
-                if (newUserNotification.length > 0) {
-                    // Emit the notification to all relevant personnel via WebSocket.
-                    // Pass the first recipient and the specific group target.
-                    if (notificationTarget === NotificationTarget.ROLE_AGENT) {
-                         this.notificationsWebSocketService.emitNotification(
-                            newUserNotification[0], 
-                            relevantPersonnelRecipients[0], 
-                            "role_agent"
-                        );
-                    } else if (notificationTarget === NotificationTarget.ROLE_ADMIN) {
-                        this.notificationsWebSocketService.emitNotification(
-                            newUserNotification[0], 
-                            relevantPersonnelRecipients[0], 
-                            'role_admin'
-                        );
-                    }
+                if (newUserNotificationForPersonnel.length > 0) {
+                    // Émettre la notification à tous les membres du personnel concernés via WebSocket.
+                    // On passe le premier destinataire du groupe (pour le type) et la cible de groupe.
+                    this.notificationsWebSocketService.emitNotification(newUserNotificationForPersonnel[0], filteredRecipients[0], targetGroup.toLowerCase() as any);
+                    // Conversion 'as any' car groupTarget de WebSocketService ne supporte pas directement les NotificationTarget.ROLE_...
+                    // Il faut s'assurer que les chaînes correspondent aux clés attendues par AppGateway (ex: 'role_admin' au lieu de 'ROLE_ADMIN')
                 }
             }
 
         } catch (error) {
-            this.logger.error(`Error processing 'user.created' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.created pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.activated' event when an account is activated.
-     * Informs the activated user and relevant personnel.
+     * Gère l'événement `user.activated` lorsqu'un compte est activé.
+     * Informe l'utilisateur et le personnel concerné.
      */
     @OnEvent('user.activated')
     async handleUserActivatedEvent(payload: { actor: User; user: User }) {
         const { actor, user } = payload;
 
         try {
-            const activatedUserRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
-            const adminRecipients = await this.notificationRecipientService.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.ADMIN]);
+            // L'utilisateur activé est le destinataire direct.
+            // Pas besoin de refaire un findUnique ici car `user` dans le payload est déjà l'objet User complet.
 
-            // 1. Send account status update email to the activated user.
+            // 1. Envoi de l'e-mail de mise à jour du statut à l'utilisateur activé.
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.ACCOUNT_STATUS_UPDATE,
                 {
-                    recipients: [activatedUserRecipient.email],
-                    data: {
-                        user: activatedUserRecipient, 
-                        oldStatus: UserStatus.INACTIVE, 
-                        newStatus: UserStatus.ACTIVE, 
-                        adminUser: actor 
-                    },
+                    recipients: [user.email],
+                    data: { user: user, oldStatus: UserStatus.INACTIVE, newStatus: UserStatus.ACTIVE, actor: actor },
                 },
             );
 
-            // 2. Send account status update WebSocket notification to the activated user.
+            // 2. Envoi de la notification WebSocket de mise à jour du statut à l'utilisateur activé.
             const notificationToActivatedUser = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED,
-                { 
-                    recipients: [activatedUserRecipient], 
-                    data: { user: activatedUserRecipient, newStatus: UserStatus.ACTIVE, actor: actor }, 
-                    actor: actor 
+                {
+                    recipients: [user],
+                    data: { user: user, newStatus: UserStatus.ACTIVE, actor: actor },
                 },
                 NotificationType.SYSTEM,
                 NotificationTarget.INDIVIDUAL
             );
             if (notificationToActivatedUser.length > 0) {
-                this.notificationsWebSocketService.emitNotification(notificationToActivatedUser[0], activatedUserRecipient);
+                this.notificationsWebSocketService.emitNotification(notificationToActivatedUser[0], user);
             }
 
-            // 3. Send WebSocket notifications to administrators.
+            // 3. Envoi des notifications WebSocket aux administrateurs.
+            const adminRecipients = await this.prisma.user.findMany({
+                where: {
+                    type: UserType.PERSONNEL,
+                    role: { in: [Role.ADMIN, Role.CHEF_SERVICE] },
+                    status: UserStatus.ACTIVE
+                }
+            });
+
             if (adminRecipients.length > 0) {
                 const notificationToAdmins = await this.notificationsService.createAndSendMultiple(
-                    this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED, // Reuse template for admin notification.
-                    { 
-                        recipients: adminRecipients, 
-                        data: { user: activatedUserRecipient, newStatus: UserStatus.ACTIVE, actor: actor }, 
-                        actor: actor 
+                    this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED, // Réutilisation du template pour l'admin
+                    {
+                        recipients: adminRecipients,
+                        data: { user: user, newStatus: UserStatus.ACTIVE, actor: actor },
                     },
                     NotificationType.SYSTEM,
                     NotificationTarget.ROLE_ADMIN
@@ -197,59 +191,59 @@ export class UserListenerService {
             }
 
         } catch (error) {
-            this.logger.error(`Error processing 'user.activated' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.activated pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.deactivated' event when an account is deactivated.
-     * Informs the deactivated user and relevant personnel.
+     * Gère l'événement `user.deactivated` lorsqu'un compte est désactivé.
+     * Informe l'utilisateur et le personnel concerné.
      */
     @OnEvent('user.deactivated')
     async handleUserDeactivatedEvent(payload: { actor: User; user: User }) {
         const { actor, user } = payload;
 
         try {
-            const deactivatedUserRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
-            const adminRecipients = await this.notificationRecipientService.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.ADMIN]);
+            // L'utilisateur désactivé est le destinataire direct.
 
-            // 1. Send account status update email to the deactivated user.
+            // 1. Envoi de l'e-mail de mise à jour du statut à l'utilisateur désactivé.
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.ACCOUNT_STATUS_UPDATE,
                 {
-                    recipients: [deactivatedUserRecipient.email],
-                    data: { 
-                        user: deactivatedUserRecipient, 
-                        oldStatus: UserStatus.ACTIVE, 
-                        newStatus: UserStatus.INACTIVE, 
-                        adminUser: actor 
-                    },
+                    recipients: [user.email],
+                    data: { user: user, oldStatus: UserStatus.ACTIVE, newStatus: UserStatus.INACTIVE, actor: actor },
                 },
             );
 
-            // 2. Send account status update WebSocket notification to the deactivated user.
+            // 2. Envoi de la notification WebSocket de mise à jour du statut à l'utilisateur désactivé.
             const notificationToDeactivatedUser = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED,
-                { 
-                    recipients: [deactivatedUserRecipient], 
-                    data: { user: deactivatedUserRecipient, newStatus: UserStatus.INACTIVE, actor: actor }, 
-                    actor: actor 
+                {
+                    recipients: [user],
+                    data: { user: user, newStatus: UserStatus.INACTIVE, actor: actor },
                 },
                 NotificationType.SYSTEM,
                 NotificationTarget.INDIVIDUAL
             );
             if (notificationToDeactivatedUser.length > 0) {
-                this.notificationsWebSocketService.emitNotification(notificationToDeactivatedUser[0], deactivatedUserRecipient);
+                this.notificationsWebSocketService.emitNotification(notificationToDeactivatedUser[0], user);
             }
 
-            // 3. Send WebSocket notifications to administrators.
+            // 3. Envoi des notifications WebSocket aux administrateurs.
+            const adminRecipients = await this.prisma.user.findMany({
+                where: {
+                    type: UserType.PERSONNEL,
+                    role: { in: [Role.ADMIN, Role.CHEF_SERVICE] },
+                    status: UserStatus.ACTIVE
+                }
+            });
+
             if (adminRecipients.length > 0) {
                 const notificationToAdmins = await this.notificationsService.createAndSendMultiple(
-                    this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED, // Reuse template for admin notification.
-                    { 
-                        recipients: adminRecipients, 
-                        data: { user: deactivatedUserRecipient, newStatus: UserStatus.INACTIVE, actor: actor }, 
-                        actor: actor 
+                    this.userNotificationsTemplate.ACCOUNT_STATUS_UPDATED, // Réutilisation du template pour l'admin
+                    {
+                        recipients: adminRecipients,
+                        data: { user: user, newStatus: UserStatus.INACTIVE, actor: actor },
                     },
                     NotificationType.SYSTEM,
                     NotificationTarget.ROLE_ADMIN
@@ -260,36 +254,41 @@ export class UserListenerService {
             }
 
         } catch (error) {
-            this.logger.error(`Error processing 'user.deactivated' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.deactivated pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.deleted' event (permanent deletion).
-     * Notifies administrators. Note: Sending emails to a deleted user should be handled upstream if needed.
+     * Gère l'événement `user.deleted` (suppression définitive).
+     * Notifie les administrateurs. Note: L'envoi d'e-mails à un utilisateur supprimé doit être géré en amont si nécessaire.
      */
     @OnEvent('user.deleted')
     async handleUserDeletedEvent(payload: { actor: User; user: User }) {
         const { actor, user } = payload;
 
         try {
-            const adminRecipients = await this.notificationRecipientService.getActiveUsersAsRecipientsByTypeAndRoles(UserType.PERSONNEL, [Role.ADMIN]);
+            const adminRecipients = await this.prisma.user.findMany({
+                where: {
+                    type: UserType.PERSONNEL,
+                    role: { in: [Role.ADMIN, Role.CHEF_SERVICE] },
+                    status: UserStatus.ACTIVE
+                }
+            });
 
             if (adminRecipients.length > 0) {
-                // Create and send deletion notification to administrators.
+                // Création et envoi de la notification de suppression aux administrateurs.
                 const deleteNotification = await this.notificationsService.createAndSendMultiple(
-                    // Ad-hoc template for deletion; a dedicated `USER_DELETED_FOR_ADMIN` template is ideal.
+                    // Template ad-hoc pour la suppression; un template dédié `USER_DELETED_FOR_ADMIN` serait idéal.
                     {
                         title: () => `🚫 Suppression d'utilisateur`,
                         message: () => `L'utilisateur ${user.firstName ?? ''} ${user.lastName ?? ''} (${user.email}) a été supprimé par ${actor.firstName ?? ''} ${actor.lastName ?? ''}.`,
-                        icon: () => '❌', // Use an appropriate error or deletion icon.
-                        iconBgColor: () => '#FF0000', // Red background color for urgency.
+                        icon: () => '❌', // Utiliser un icône d'erreur ou de suppression approprié
+                        iconBgColor: () => '#FF0000', // Couleur de fond rouge pour l'urgence
                         showChevron: false,
                     },
-                    { 
-                        recipients: adminRecipients, 
-                        data: { userId: user.id, actorId: actor.id, type: 'USER_DELETED' }, 
-                        actor: actor 
+                    {
+                        recipients: adminRecipients,
+                        data: { userId: user.id, actorId: actor.id, type: 'USER_DELETED' }, // Données spécifiques pour la notification
                     },
                     NotificationType.SYSTEM,
                     NotificationTarget.ROLE_ADMIN
@@ -299,120 +298,120 @@ export class UserListenerService {
                 }
             }
         } catch (error) {
-            this.logger.error(`Error processing 'user.deleted' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.deleted pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.passwordResetSuccess' event after a successful password reset.
-     * Informs the user of the change.
+     * Gère l'événement `user.passwordResetSuccess` après une réinitialisation réussie.
+     * Informe l'utilisateur de la modification.
      */
     @OnEvent('user.passwordResetSuccess')
     async handlePasswordResetSuccessEvent(payload: { user: User }) {
         const { user } = payload;
 
         try {
-            const userRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
+            // L'utilisateur est le destinataire direct.
 
-            // 1. Send password change confirmation email.
+            // 1. Envoi de l'e-mail de confirmation de changement de mot de passe.
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.PASSWORD_CHANGED_SUCCESS,
-                { recipients: [userRecipient.email], data: { user: userRecipient } },
+                { recipients: [user.email], data: { user: user } },
             );
 
-            // 2. Send password change confirmation WebSocket notification.
+            // 2. Envoi de la notification WebSocket de confirmation.
             const notificationToUser = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.PASSWORD_CHANGED_SUCCESS,
-                { 
-                    recipients: [userRecipient], 
-                    data: { user: userRecipient }, 
-                    actor: user 
+                {
+                    recipients: [user],
+                    data: { user: user },
                 },
                 NotificationType.ACCOUNT_UPDATE,
                 NotificationTarget.INDIVIDUAL
             );
             if (notificationToUser.length > 0) {
-                this.notificationsWebSocketService.emitNotification(notificationToUser[0], userRecipient);
+                this.notificationsWebSocketService.emitNotification(notificationToUser[0], user);
             }
         } catch (error) {
-            this.logger.error(`Error processing 'user.passwordResetSuccess' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.passwordResetSuccess pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.profileUpdated' event after a profile modification.
-     * Informs the user about the updates.
+     * Gère l'événement `user.profileUpdated` après une modification du profil.
+     * Informe l'utilisateur des mises à jour.
      */
     @OnEvent('user.profileUpdated')
     async handleUserProfileUpdatedEvent(payload: { actor: User; user: User }) {
         const { actor, user } = payload;
 
         try {
-            const updatedUserRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
+            // L'utilisateur mis à jour est le destinataire direct.
 
-            // 1. Send profile update email.
+            // 1. Envoi de l'e-mail de mise à jour de profil.
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.ACCOUNT_PROFILE_UPDATED,
-                { recipients: [updatedUserRecipient.email], data: { user: updatedUserRecipient, updatedBy: actor } },
+                { recipients: [user.email], data: { user: user, actor: actor } },
             );
 
-            // 2. Send profile update WebSocket notification.
+            // 2. Envoi de la notification WebSocket de mise à jour de profil.
             const notificationToUser = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.PROFILE_UPDATED,
-                { 
-                    recipients: [updatedUserRecipient], 
-                    data: { user: updatedUserRecipient, actor: actor }, 
-                    actor: actor 
+                {
+                    recipients: [user],
+                    data: { user: user, actor: actor },
                 },
                 NotificationType.ACCOUNT_UPDATE,
                 NotificationTarget.INDIVIDUAL
             );
             if (notificationToUser.length > 0) {
-                this.notificationsWebSocketService.emitNotification(notificationToUser[0], updatedUserRecipient);
+                this.notificationsWebSocketService.emitNotification(notificationToUser[0], user);
             }
         } catch (error) {
-            this.logger.error(`Error processing 'user.profileUpdated' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.profileUpdated pour ${user.email}:`, error.stack);
         }
     }
 
     /**
-     * Handles the 'user.roleUpdated' event after a staff member's role is modified.
-     * Informs the affected staff member.
+     * Gère l'événement `user.roleUpdated` après une modification du rôle d'un membre du personnel.
+     * Informe le membre du personnel concerné.
      */
     @OnEvent('user.roleUpdated')
     async handleUserRoleUpdatedEvent(payload: { actor: User; user: User; oldRole: Role | null; newRole: Role }) {
         const { actor, user, oldRole, newRole } = payload;
 
         try {
-            const updatedPersonnelRecipient = await this.notificationRecipientService.getUserAsRecipient(user.id);
+            // Le membre du personnel mis à jour est le destinataire direct.
 
-            // 1. Send role update email.
+            // 1. Envoi de l'e-mail de mise à jour de rôle.
             await this.emailService.sendEmailTemplate(
                 this.userEmailTemplates.PERSONNEL_ROLE_UPDATED,
-                { recipients: [updatedPersonnelRecipient.email], data: { 
-                    user: updatedPersonnelRecipient, 
-                    oldRole, 
-                    newRole, 
-                    adminUser: actor 
-                } },
+                {
+                    recipients: [user.email],
+                    data: {
+                        user: user,
+                        oldRole,
+                        newRole,
+                        adminUser: actor
+                    }
+                },
             );
 
-            // 2. Send role update WebSocket notification.
+            // 2. Envoi de la notification WebSocket de mise à jour de rôle.
             const notificationToPersonnel = await this.notificationsService.createAndSendMultiple(
                 this.userNotificationsTemplate.PERSONNEL_ROLE_UPDATED,
-                { 
-                    recipients: [updatedPersonnelRecipient], 
-                    data: { user: updatedPersonnelRecipient, oldRole, newRole, actor }, 
-                    actor: actor 
+                {
+                    recipients: [user],
+                    data: { user: user, oldRole, newRole, actor: actor },
                 },
                 NotificationType.SYSTEM,
                 NotificationTarget.INDIVIDUAL
             );
             if (notificationToPersonnel.length > 0) {
-                this.notificationsWebSocketService.emitNotification(notificationToPersonnel[0], updatedPersonnelRecipient);
+                this.notificationsWebSocketService.emitNotification(notificationToPersonnel[0], user);
             }
         } catch (error) {
-            this.logger.error(`Error processing 'user.roleUpdated' event for ${user.email}:`, error.stack);
+            this.logger.error(`Erreur lors du traitement de l'événement user.roleUpdated pour ${user.email}:`, error.stack);
         }
     }
 }

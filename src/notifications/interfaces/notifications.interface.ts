@@ -1,7 +1,6 @@
 import { User } from "@prisma/client";
 
 export interface NotificationContext<T> {
-    actor: User;
     recipients: User[];
     data: T;
 }

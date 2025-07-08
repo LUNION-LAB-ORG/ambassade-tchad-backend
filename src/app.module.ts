@@ -20,6 +20,8 @@ import { SocketIoModule } from 'src/socket-io/socket-io.module';
 import { TwilioModule } from 'src/twilio/twilio.module';
 import { EmailModule } from 'src/email/email.module';
 import { JsonWebTokenModule } from 'src/json-web-token/json-web-token.module';
+import { NewsModule } from './modules/news/news.module';
+import { EventsModule } from './modules/events/events.module';
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -43,7 +45,8 @@ import { JsonWebTokenModule } from 'src/json-web-token/json-web-token.module';
     SocketIoModule,
     TwilioModule,
     EmailModule,
-   
+    NewsModule,
+   EventsModule
   ],
 })
 

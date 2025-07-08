@@ -562,7 +562,7 @@ model News {
   id        String   @id @default(uuid())
   title     String
   content   String   @db.Text
-  imageUrl  String?
+  imageUrls  String[]
   published Boolean  @default(false)
   authorId  String
   author    User     @relation("AuthorNews", fields: [authorId], references: [id], onDelete: Restrict)
@@ -581,7 +581,7 @@ model Event {
   description String   @db.Text
   eventDate   DateTime
   location    String?
-  imageUrl    String?
+  imageUrl    String[]
   published   Boolean  @default(false)
   authorId    String
   author      User     @relation("AuthorEvent", fields: [authorId], references: [id], onDelete: Restrict)

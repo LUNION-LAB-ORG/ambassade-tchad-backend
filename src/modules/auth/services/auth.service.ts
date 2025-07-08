@@ -4,7 +4,7 @@ import { RequestPasswordResetOtpDto } from '../dto/request-password-reset-otp.dt
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { UserType, UserStatus, User } from '@prisma/client'; // Ajout de Role
 import { PrismaService } from 'src/database/services/prisma.service';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
 import { OtpService } from 'src/otp/otp.service';
 import { LoginDto } from '../dto/login.dto';
@@ -45,7 +45,7 @@ export class AuthService {
 
     // 1. Vérifier si l'utilisateur existe déjà
     const userExist = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase()},
     });
     if (userExist) {
       throw new ConflictException('Un utilisateur avec cet email existe déjà.');
@@ -87,7 +87,7 @@ export class AuthService {
 
     // 1. Trouver l'utilisateur par email
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase() },
     });
 
     if (!user) {

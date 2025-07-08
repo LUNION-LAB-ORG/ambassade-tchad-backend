@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { Prisma, User, UserType, UserStatus } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { GenerateDataService } from 'src/common/services/generate-data.service';
 import { UserEvent } from '../events/user.event';
 import { CreateUserDto } from '../dto/create-user.dto';

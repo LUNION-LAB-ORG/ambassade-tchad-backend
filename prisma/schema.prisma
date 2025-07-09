@@ -598,7 +598,7 @@ model Photo {
   id          String   @id @default(uuid())
   title       String?
   description String?
-  imageUrl    String
+  imageUrl    String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

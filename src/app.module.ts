@@ -22,6 +22,8 @@ import { EmailModule } from 'src/email/email.module';
 import { JsonWebTokenModule } from 'src/json-web-token/json-web-token.module';
 import { NewsModule } from './modules/news/news.module';
 import { EventsModule } from './modules/events/events.module';
+import { VideosModule } from './modules/galerie/videos/videos.module';
+import { PhotosModule } from './modules/galerie/photos/photos.module';
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -46,7 +48,9 @@ import { EventsModule } from './modules/events/events.module';
     TwilioModule,
     EmailModule,
     NewsModule,
-   EventsModule
+   EventsModule,
+   PhotosModule,
+   VideosModule
   ],
 })
 

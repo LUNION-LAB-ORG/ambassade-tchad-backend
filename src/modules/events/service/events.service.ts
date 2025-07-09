@@ -116,17 +116,24 @@ export class EventsService {
     const event = await this.findOne(id);
 
     // Tout le monde peut modifier, plus besoin de vérifier l’auteur
-    return this.prisma.event.update({
+    const updatedEvent = await this.prisma.event.update({
       where: { id },
       data: updateEventsDto,
     });
+
+    return {
+      message: "Événement mis à jour avec succès.",
+      data: updatedEvent,
+    };
   }
 
   async remove(id: string, userId: string) {
     const event = await this.findOne(id);
 
-    return this.prisma.event.delete({
+    await this.prisma.event.delete({
       where: { id },
     });
+
+    return { message: "Événement supprimé avec succès." };
   }
 }

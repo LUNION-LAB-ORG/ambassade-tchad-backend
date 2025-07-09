@@ -41,11 +41,11 @@ export class CreateEventsDto {
     @ApiProperty({
         description: "URL de l'image associée à l'actualité",
         example: 'https://example.com/image.jpg',
-        required: false,
+        required: true,
     })
     @IsArray()
     @IsString({ each:true})
-    imageUrls: string[];
+    imageUrl: string[];
 
     @ApiProperty({
         description: "Indique si l'actualité est publiée",

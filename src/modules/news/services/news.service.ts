@@ -62,6 +62,58 @@ export class NewsService {
     return news;
   }
 
+  // filtre des news
+   async findAllWithFilters(filters: {
+    title?: string;
+    authorId?: string;
+    published?: boolean;
+    // fromDate?: Date;
+    toDate?: Date;
+  }) {
+    return this.prisma.news.findMany({
+      where: {
+        title: filters.title
+          ? { contains: filters.title, mode: 'insensitive' }
+          : undefined,
+        authorId: filters.authorId,
+        published: filters.published,
+        createdAt: {
+          // gte: filters.fromDate,
+          lte: filters.toDate,
+        },
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // statistique des news
+
+  async getStats() {
+    const total = await this.prisma.news.count();
+    const published = await this.prisma.news.count({ where: { published: true } });
+    const unpublished = total - published;
+
+    const byAuthor = await this.prisma.news.groupBy({
+      by: ['authorId'],
+      _count: { id: true },
+    });
+
+    return {
+      total,
+      published,
+      unpublished,
+      byAuthor,
+    };
+  }
   async update(id: string, updateNewsDto: UpdateNewsDto, userId: string) {
     const news = await this.findOne(id);
 

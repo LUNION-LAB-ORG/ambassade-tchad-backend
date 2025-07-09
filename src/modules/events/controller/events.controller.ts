@@ -9,6 +9,7 @@ import {
   Query,
   Request,
   UseGuards,
+  Put,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { EventsService } from '../service/events.service';
@@ -34,23 +35,23 @@ export class EventsController {
     return this.eventsService.findAll(false);
   }
 
-  @Get('/admin')
-  findAllAdmin() {
-    return this.eventsService.findAll(true);
-  }
+  // @Get('/admin')
+  // findAllAdmin() {
+  //   return this.eventsService.findAll(true);
+  // }
 
   @Get('/filter')
   filter(
     @Query('title') title?: string,
     @Query('authorId') authorId?: string,
-    @Query('published') published?: string,
+    @Query('published') published?: boolean,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
   ) {
     return this.eventsService.findAllWithFilters({
       title,
       authorId,
-      published: published !== undefined ? published === 'true' : undefined,
+      published: published !== undefined ? published === true : undefined,
       fromDate: fromDate ? new Date(fromDate) : undefined,
       toDate: toDate ? new Date(toDate) : undefined,
     });
@@ -64,19 +65,28 @@ export class EventsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.eventsService.findOne(id);
+
   }
 
-  @Patch(':id')
-  update(
+  @Put(':id')
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateEventsDto,
     @Request() req,
   ) {
-    return this.eventsService.update(id, dto, req.user.id);
+    const updatedEvent = await this.eventsService.update(id, dto, req.user.id);
+    return {
+      message: 'Événement mis à jour avec succès.',
+      data: updatedEvent,
+    };
   }
 
+
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req) {
-    return this.eventsService.remove(id, req.user.id);
+   @UseGuards(JwtAuthGuard, UserRolesGuard)
+  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.eventsService.remove(id, req.user.id);
+    return { message:  `Evènement avec l'id ${id} supprimé avec succès.` };
   }
 }

@@ -8,73 +8,63 @@ export async function userSeed() {
 
   // Définition des données des utilisateurs à insérer ou mettre à jour
   const datas: Prisma.UserCreateInput[] = [
-    // {
-    //   // Administrateur du Back-Office
-    //   firstName: 'Admin',
-    //   lastName: 'Principal', // Ajout du lastName
-    //   email: 'andersonkouadio0109@gmail.com', // Email générique pour la réutilisabilité
-    //   password: 'Admin@2025', // Sera haché
-    //   type: UserType.PERSONNEL, // Changé de BACKOFFICE à PERSONNEL
-    //   role: Role.ADMIN, // Changé de UserRole.ADMIN à Role.ADMIN
-    //   status: 'ACTIVE', // Assure que l'utilisateur est actif par défaut
-    //   phoneNumber: '0000000000', // Exemple de numéro de téléphone
-    // },
-    // {
-    //   // Un agent de l'ambassade
-    //   firstName: 'Agent',
-    //   lastName: 'Consulaire',
-    //   email: 'agent@ambassade.com',
-    //   password: 'Agent@2025',
-    //   type: UserType.PERSONNEL,
-    //   role: Role.AGENT,
-    //   status: 'ACTIVE',
-    //   phoneNumber: '1111111111',
-    // },
-    // {
-    //   // Un Chef de Service
-    //   firstName: 'Chef',
-    //   lastName: 'Service',
-    //   email: 'chef@ambassade.com',
-    //   password: 'Chef@2025',
-    //   type: UserType.PERSONNEL,
-    //   role: Role.CHEF_SERVICE,
-    //   status: 'ACTIVE',
-    //   phoneNumber: '2222222222',
-    // },
-    // {
-    //   // Un Consul
-    //   firstName: 'Consul',
-    //   lastName: 'General',
-    //   email: 'consul@ambassade.com',
-    //   password: 'Consul@2025',
-    //   type: UserType.PERSONNEL,
-    //   role: Role.CONSUL,
-    //   status: 'ACTIVE',
-    //   phoneNumber: '3333333333',
-    // },
-    // {
-    //   // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
-    //   firstName: 'Demandeur',
-    //   lastName: 'Test',
-    //   email: 'demandeur@example.com',
-    //   password: 'Demandeur@2025', // Sera haché
-    //   type: UserType.DEMANDEUR, // Type DEMANDEUR
-    //   role: null, // Le rôle est null pour les clients, comme défini dans le schéma
-    //   status: 'ACTIVE',
-    //   phoneNumber: '4444444444',
-    // },
-    
-     {
-      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
-      firstName: 'Yamoussa',
-      lastName: 'Keita',
-      email: 'yamooon664@gmail.com',
-      password: 'Yamooon664@2025', // Sera haché
-      type: UserType.PERSONNEL, // Type DEMANDEUR
-      role: Role.ADMIN, // Le rôle est null pour les clients, comme défini dans le schéma
-      status: 'ACTIVE',
-      phoneNumber: '+2250565855202',
+    {
+      // Administrateur du Back-Office
+      firstName: 'Admin',
+      lastName: 'Principal', // Ajout du lastName
+      email: 'andersonkouadio0109@gmail.com', // Email générique pour la réutilisabilité
+      password: 'Admin@2025', // Sera haché
+      type: UserType.PERSONNEL, // Changé de BACKOFFICE à PERSONNEL
+      role: Role.ADMIN, // Changé de UserRole.ADMIN à Role.ADMIN
+      status: 'ACTIVE', // Assure que l'utilisateur est actif par défaut
+      phoneNumber: '0000000000', // Exemple de numéro de téléphone
     },
+    {
+      // Un agent de l'ambassade
+      firstName: 'Agent',
+      lastName: 'Consulaire',
+      email: 'agent@ambassade.com',
+      password: 'Agent@2025',
+      type: UserType.PERSONNEL,
+      role: Role.AGENT,
+      status: 'ACTIVE',
+      phoneNumber: '1111111111',
+    },
+    {
+      // Un Chef de Service
+      firstName: 'Chef',
+      lastName: 'Service',
+      email: 'chef@ambassade.com',
+      password: 'Chef@2025',
+      type: UserType.PERSONNEL,
+      role: Role.CHEF_SERVICE,
+      status: 'ACTIVE',
+      phoneNumber: '2222222222',
+    },
+    {
+      // Un Consul
+      firstName: 'Consul',
+      lastName: 'General',
+      email: 'consul@ambassade.com',
+      password: 'Consul@2025',
+      type: UserType.PERSONNEL,
+      role: Role.CONSUL,
+      status: 'ACTIVE',
+      phoneNumber: '3333333333',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Demandeur',
+      lastName: 'Test',
+      email: 'demandeur@example.com',
+      password: 'Demandeur@2025', // Sera haché
+      type: UserType.DEMANDEUR, // Type DEMANDEUR
+      role: null, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '4444444444',
+    },
+    
+    
     {
       // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
       firstName: 'Andy',
@@ -96,6 +86,17 @@ export async function userSeed() {
       role: Role.ADMIN, // Le rôle est null pour les clients, comme défini dans le schéma
       status: 'ACTIVE',
       phoneNumber: '+2250152358036',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Fatem',
+      lastName: 'Coulibaly',
+      email: 'fatem@gmail.com',
+      password: 'Fatem@2025', // Sera haché
+      type: UserType.PERSONNEL, // Type DEMANDEUR
+      role: Role.CHEF_SERVICE, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250758618662',
     },
   ];
 

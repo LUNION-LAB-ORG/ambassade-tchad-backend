@@ -31,6 +31,7 @@ export class CreateVideosDto {
         example: 'https://www.youtube.com/watch?v=DWsUwrgxNzA&list=RD3ymvDpsNj54&index=9',
         required: true,
     })
+    
     @IsNotEmpty({ message: 'La description est obligatoire.' })
     @MaxLength(5000, { message: 'Le contenu ne doit pas dépasser 5000 caractères.' })
     @IsString({message: 'Le contenu doit être une chaîne de caractères.'})

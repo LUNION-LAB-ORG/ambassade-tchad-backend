@@ -24,6 +24,8 @@ import { NewsModule } from './modules/news/news.module';
 import { EventsModule } from './modules/events/events.module';
 import { VideosModule } from './modules/galerie/videos/videos.module';
 import { PhotosModule } from './modules/galerie/photos/photos.module';
+import { DemandRequestsModule } from './modules/demand-requests/demand-requests.module';
+
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -50,8 +52,11 @@ import { PhotosModule } from './modules/galerie/photos/photos.module';
     NewsModule,
    EventsModule,
    PhotosModule,
-   VideosModule
+   VideosModule,
+   DemandRequestsModule,
+   
   ],
+ 
 })
 
 export class AppModule { }

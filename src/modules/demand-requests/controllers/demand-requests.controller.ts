@@ -18,50 +18,30 @@ import { DemandRequestsService } from '../services/demand-requests.service';
 import { CreateDemandRequestDto } from '../dto/create-demandRequest.dto';
 import { UpdateDemandRequestDto } from '../dto/update-damandRequest.dto';
 import { GetDemandRequestsFilterDto } from '../dto/get-demandRequests-filter.dto';
+import { JwtDemandeurAuthGuard } from 'src/modules/auth/guards/jwt-demandeur-auth.guard';
 
 @Controller('demandes')
-@UseGuards(JwtAuthGuard)
 export class DemandRequestsController {
     constructor(private readonly demandRequestsService: DemandRequestsService) { }
 
     // Création de la demande par un utilisateur
+    @UseGuards(JwtDemandeurAuthGuard)
     @Post()
     async create(@Body() dto: CreateDemandRequestDto, @Request() req) {
         return this.demandRequestsService.create(dto, req.user.id);
     }
 
     // L'utilisateur peut suivre sa propre demande par ticket
+    @UseGuards(JwtDemandeurAuthGuard)
     @Get('track/:ticket')
     async trackByTicket(@Param('ticket') ticket: string, @Request() req) {
         return this.demandRequestsService.trackByTicket(ticket, req.user.id);
     }
 
-    // Récupérer une seule demande au personnel
-    @Get(':id')
-    @UseGuards(UserRolesGuard)
-    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.ADMIN, Role.CONSUL)
-    async getOne(@Param('id') id: string, @Request() req) {
-        return this.demandRequestsService.findOne(id, req.user);
-    }
+    // filtre des demandes avec Pagination
 
-    // Seul le personnel peut voir toutes les demandes paginées
-    @Get()
-    @UseGuards(UserRolesGuard)
-    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
-    async getAll(
-        @Query('page') page: string,
-        @Query('limit') limit: string,
-    ) {
-        const pageNumber = parseInt(page) || 1;
-        const pageSize = parseInt(limit) || 10;
-        return this.demandRequestsService.getAll(pageNumber, pageSize);
-    }
-
-
-    // Pagination pour les demandes
-
-    @Get('admin')
-    @UseGuards(UserRolesGuard)
+    @Get('filter')
+    @UseGuards(JwtAuthGuard,UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
     async getAllFiltered(
         @Query(new ValidationPipe({ transform: true }))
@@ -88,16 +68,39 @@ export class DemandRequestsController {
     }
 
     // Voir les statistiques de demande
-    @Get('stats')
-    @UseGuards(UserRolesGuard)
+    @Get('/stats')
+    @UseGuards(JwtAuthGuard,UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    
     async getStats() {
         return this.demandRequestsService.getStats();
     }
 
+    // Récupérer une seule demande au personnel
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
+    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.ADMIN, Role.CONSUL)
+    @Get(':id')
+    async getOne(@Param('id') id: string, @Request() req) {
+        return this.demandRequestsService.findOne(id, req.user);
+    }
+
+    // Seul le personnel peut voir toutes les demandes paginées
+    @Get()
+    @UseGuards(JwtAuthGuard,UserRolesGuard)
+    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    async getAll(
+        @Query('page') page: string,
+        @Query('limit') limit: string,
+    ) {
+        const pageNumber = parseInt(page) || 1;
+        const pageSize = parseInt(limit) || 10;
+        return this.demandRequestsService.getAll(pageNumber, pageSize);
+    }
+    
+
     // Mise à jour du statut uniquement par le personnel autorisé
     @Put(':id/status')
-    @UseGuards(UserRolesGuard)
+    @UseGuards(JwtAuthGuard,UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
     async updateStatus(
         @Param('id') id: string,

@@ -57,6 +57,7 @@ export class DemandRequestsService {
                 serviceType: dto.serviceType,
                 status: RequestStatus.NEW,
                 amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
 
                 visaDetails: dto.visaDetails ? { create: { ...dto.visaDetails } } : undefined,
 
@@ -172,20 +173,24 @@ export class DemandRequestsService {
     }
 
     async getAllFiltered(query: {
-    status?: RequestStatus;
-    serviceType?: ServiceType;
-    userId?: string;
-    fromDate?: string;
-    toDate?: string;
-    page?: number;
-    limit?: number;
-}, pageNumber: number, pageSize: number) {
+        status?: RequestStatus;
+        serviceType?: ServiceType;
+        userId?: string;
+        fromDate?: string;
+        toDate?: string;
+        ticketNumber?: string;
+        contactPhoneNumber?: string;
+        page?: number;
+        limit?: number;
+    }, pageNumber: number, pageSize: number) {
         const {
             status,
             serviceType,
             userId,
             fromDate,
             toDate,
+            ticketNumber,
+            contactPhoneNumber,
             page = 1,
             limit = 10,
         } = query;
@@ -194,6 +199,8 @@ export class DemandRequestsService {
             status,
             serviceType,
             userId,
+            ticketNumber: ticketNumber ? { contains: ticketNumber, mode: 'insensitive' } : undefined,
+            contactPhoneNumber: contactPhoneNumber ? { contains: contactPhoneNumber, mode: 'insensitive' } : undefined,
             submissionDate: {
                 gte: fromDate ? new Date(fromDate) : undefined,
                 lte: toDate ? new Date(toDate) : undefined,
@@ -238,6 +245,7 @@ export class DemandRequestsService {
             data,
         };
     }
+
 
     async trackByTicket(ticket: string, userId: string) {
         const request = await this.prisma.request.findUnique({

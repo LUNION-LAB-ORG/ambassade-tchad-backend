@@ -29,6 +29,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // Exemple de VisaRequestDetailsDto
 export class VisaRequestDetailsDto {
     @ApiProperty({
+    description: 'Type de service (fixé à VISA)',
+    enum: ServiceType,
+    example: ServiceType.VISA,
+  })
+  readonly serviceType?: "VISA" = "VISA";
+
+    @ApiProperty({
         description: "le prenom du demandeur de visa",
         example: "Anderson",
         required: true,
@@ -251,6 +258,13 @@ export class VisaRequestDetailsDto {
 
 // DTO pour demande d'extrait d'acte de naissance
 export class BirthActRequestDetailsDto {
+
+    @ApiProperty({
+    description: 'Type de service (fixé à EXTRAIT DE NAISSANCE)',
+    enum: ServiceType,
+    example: ServiceType.BIRTH_ACT_APPLICATION,
+  })
+  readonly serviceType?: "BIRTH_ACT_APPLICATION" = "BIRTH_ACT_APPLICATION";
     
     @ApiProperty({
         description: "Prénom de la personne concernée par l'acte de naissance",
@@ -343,6 +357,13 @@ export class BirthActRequestDetailsDto {
 
 // DTO pour la demande de carte consulaire
 export class ConsularCardRequestDetailsDto {
+    @ApiProperty({
+    description: 'Type de service (fixé à CARTE CONSULAIRE)',
+    enum: ServiceType,
+    example: ServiceType.CONSULAR_CARD,
+  })
+  readonly serviceType?: "CONSULAR_CARD" = "CONSULAR_CARD";
+    
   @ApiProperty({
     description: 'Prénom de la personne concernée',
     example: 'Anderson',
@@ -472,6 +493,12 @@ export class ConsularCardRequestDetailsDto {
 
 // DTO de la demande du certificat de nationalité
 export class NationalityCertificateRequestDetailsDto {
+     @ApiProperty({
+    description: 'Type de service (fixé à CERTIFICAT DE NATIONALITE)',
+    enum: ServiceType,
+    example: ServiceType.NATIONALITY_CERTIFICATE,
+  })
+  readonly serviceType?: "NATIONALITY_CERTIFICATE" = "NATIONALITY_CERTIFICATE";
   @ApiProperty({
     description: "Prénom du demandeur",
     example: "Anderson",
@@ -613,6 +640,13 @@ export class AccompanierDto {
 
 // DTO de la demande d'un laisser-passer
 export class LaissezPasserRequestDetailsDto {
+      @ApiProperty({
+    description: 'Type de service (fixé à LAISSER PASSER)',
+    enum: ServiceType,
+    example: ServiceType.LAISSEZ_PASSER,
+  })
+  readonly serviceType?: "LAISSEZ_PASSER" = "LAISSEZ_PASSER";
+
   @ApiProperty({ description: "Prénom du demandeur", example: "Anderson" })
   @IsString()
   @MaxLength(255)
@@ -708,6 +742,13 @@ export class LaissezPasserRequestDetailsDto {
 
 // DTO pour une demande capacité de mariage
 export class MarriageCapacityActRequestDetailsDto {
+      @ApiProperty({
+    description: 'Type de service (fixé à CERTIFICATION DE CAPACITE DE MARIAGE)',
+    enum: ServiceType,
+    example: ServiceType.MARRIAGE_CAPACITY_ACT,
+  })
+  readonly serviceType?: "MARRIAGE_CAPACITY_ACT" = "MARRIAGE_CAPACITY_ACT";
+
   // Époux
   @ApiProperty({ description: 'Prénom de l’époux', example: 'Jean' })
   @IsString()
@@ -784,6 +825,13 @@ export class MarriageCapacityActRequestDetailsDto {
 
 // DTO demande un acte de décès
 export class DeathActRequestDetailsDto {
+       @ApiProperty({
+    description: 'Type de service (fixé à CERTIFICATION DE DECES)',
+    enum: ServiceType,
+    example: ServiceType.DEATH_ACT_APPLICATION,
+  })
+  readonly serviceType?: "DEATH_ACT_APPLICATION" = "DEATH_ACT_APPLICATION";
+
   @ApiProperty({
     description: 'Prénom du défunt',
     example: 'Jean',
@@ -830,6 +878,13 @@ export class DeathActRequestDetailsDto {
 
 // DTO demande de procuration
 export class PowerOfAttorneyRequestDetailsDto {
+       @ApiProperty({
+    description: 'Type de service (fixé à DEMANDE PROCURATION)',
+    enum: ServiceType,
+    example: ServiceType.POWER_OF_ATTORNEY,
+  })
+  readonly serviceType?: "POWER_OF_ATTORNEY" = "POWER_OF_ATTORNEY";
+
   @ApiProperty({
     description: "Prénom de l'agent",
     example: "Jean",

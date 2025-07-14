@@ -1,3 +1,4 @@
+
 import {
     Controller,
     Post,
@@ -10,39 +11,52 @@ import {
     Query,
     ValidationPipe,
 } from '@nestjs/common';
+import { ApiExtraModels, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { UserRoles } from 'src/modules/users/decorators/user-roles.decorator';
 import { UserRolesGuard } from 'src/modules/users/guards/user-roles.guard';
 import { Role, RequestStatus, ServiceType } from '@prisma/client';
 import { DemandRequestsService } from '../services/demand-requests.service';
-import { CreateDemandRequestDto } from '../dto/create-demandRequest.dto';
+import { BirthActRequestDetailsDto, ConsularCardRequestDetailsDto, CreateDemandRequestDto, DeathActRequestDetailsDto, LaissezPasserRequestDetailsDto, MarriageCapacityActRequestDetailsDto, NationalityCertificateRequestDetailsDto, PowerOfAttorneyRequestDetailsDto, VisaRequestDetailsDto } from '../dto/create-demandRequest.dto';
 import { UpdateDemandRequestDto } from '../dto/update-damandRequest.dto';
 import { GetDemandRequestsFilterDto } from '../dto/get-demandRequests-filter.dto';
 import { JwtDemandeurAuthGuard } from 'src/modules/auth/guards/jwt-demandeur-auth.guard';
 
+@ApiTags('Demandes')
+@ApiExtraModels(
+    VisaRequestDetailsDto,
+    BirthActRequestDetailsDto,
+    ConsularCardRequestDetailsDto,
+    LaissezPasserRequestDetailsDto,
+    MarriageCapacityActRequestDetailsDto,
+    DeathActRequestDetailsDto,
+    PowerOfAttorneyRequestDetailsDto,
+    NationalityCertificateRequestDetailsDto
+)
 @Controller('demandes')
 export class DemandRequestsController {
-    constructor(private readonly demandRequestsService: DemandRequestsService) { }
+    constructor(private readonly demandRequestsService: DemandRequestsService) {}
 
-    // Création de la demande par un utilisateur
     @UseGuards(JwtDemandeurAuthGuard)
     @Post()
+    @ApiResponse({ status: 201, description: 'Demande créée avec succès.' })
+    @ApiResponse({ status: 400, description: 'Requête invalide.' })
     async create(@Body() dto: CreateDemandRequestDto, @Request() req) {
         return this.demandRequestsService.create(dto, req.user.id);
     }
 
-    // L'utilisateur peut suivre sa propre demande par ticket
     @UseGuards(JwtDemandeurAuthGuard)
     @Get('track/:ticket')
+    @ApiResponse({ status: 200, description: 'Détails de la demande.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
     async trackByTicket(@Param('ticket') ticket: string, @Request() req) {
         return this.demandRequestsService.trackByTicket(ticket, req.user.id);
     }
 
-    // filtre des demandes avec Pagination
-
     @Get('filter')
-    @UseGuards(JwtAuthGuard,UserRolesGuard)
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    @ApiResponse({ status: 200, description: 'Liste filtrée des demandes.' })
     async getAllFiltered(
         @Query(new ValidationPipe({ transform: true }))
         query: GetDemandRequestsFilterDto,
@@ -67,27 +81,27 @@ export class DemandRequestsController {
         );
     }
 
-    // Voir les statistiques de demande
     @Get('/stats')
-    @UseGuards(JwtAuthGuard,UserRolesGuard)
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
-    
+    @ApiResponse({ status: 200, description: 'Statistiques globales des demandes.' })
     async getStats() {
         return this.demandRequestsService.getStats();
     }
 
-    // Récupérer une seule demande au personnel
     @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.ADMIN, Role.CONSUL)
     @Get(':id')
+    @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
     async getOne(@Param('id') id: string, @Request() req) {
         return this.demandRequestsService.findOne(id, req.user);
     }
 
-    // Seul le personnel peut voir toutes les demandes paginées
     @Get()
-    @UseGuards(JwtAuthGuard,UserRolesGuard)
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    @ApiResponse({ status: 200, description: 'Liste paginée des demandes.' })
     async getAll(
         @Query('page') page: string,
         @Query('limit') limit: string,
@@ -96,12 +110,14 @@ export class DemandRequestsController {
         const pageSize = parseInt(limit) || 10;
         return this.demandRequestsService.getAll(pageNumber, pageSize);
     }
-    
 
-    // Mise à jour du statut uniquement par le personnel autorisé
     @Put(':id/status')
-    @UseGuards(JwtAuthGuard,UserRolesGuard)
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    @ApiResponse({ status: 200, description: 'Statut mis à jour avec succès.' })
+    @ApiResponse({ status: 400, description: 'Mise à jour invalide.' })
+    @ApiResponse({ status: 403, description: 'Accès interdit.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
     async updateStatus(
         @Param('id') id: string,
         @Body() dto: UpdateDemandRequestDto,

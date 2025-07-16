@@ -270,7 +270,6 @@ enum PassportType {
 enum VisaType {
   SHORT_STAY
   LONG_STAY
-  TRANSIT
 }
 
 // Enum pour le genre

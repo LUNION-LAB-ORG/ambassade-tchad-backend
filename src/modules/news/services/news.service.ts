@@ -2,6 +2,9 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { CreateNewsDto } from '../dto/create-news.dto';
 import { UpdateNewsDto } from '../dto/update-news.dto';
 import { PrismaService } from 'src/database/services/prisma.service';
+import { QueryNewsDto } from '../dto/query-news.dto';
+import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { News, Prisma } from '@prisma/client';
 
 @Injectable()
 export class NewsService {
@@ -22,22 +25,6 @@ export class NewsService {
           },
         },
       },
-    });
-  }
-
-  async findAll(includeUnpublished = false) {
-    return this.prisma.news.findMany({
-      where: includeUnpublished ? {} : { published: true },
-      include: {
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -63,36 +50,37 @@ export class NewsService {
   }
 
   // filtre des news
-   async findAllWithFilters(filters: {
-    title?: string;
-    authorId?: string;
-    published?: boolean;
-    // fromDate?: Date;
-    toDate?: Date;
-  }) {
-    return this.prisma.news.findMany({
-      where: {
-        title: filters.title
-          ? { contains: filters.title, mode: 'insensitive' }
-          : undefined,
-        authorId: filters.authorId,
-        published: filters.published,
-        createdAt: {
-          // gte: filters.fromDate,
-          lte: filters.toDate,
-        },
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAllWithFilters(filters: QueryNewsDto ):Promise<QueryResponseDto<News>> {
+      const page = filters.page ?? 1
+      const limit = filters.limit ?? 10
+      const skip = limit * (page - 1)
+      const where : Prisma.NewsWhereInput = {}
+      if(filters.title){where.title = {contains:filters.title, mode: 'insensitive'}}
+      if(filters.authorId){where.id = filters.authorId}
+      if(typeof filters.published === 'boolean'){where.published = filters.published}
+      if(filters.toDate){where.createdAt= {lte:new Date(filters.toDate)}}
+      if(filters.fromDate){where.createdAt= {gte:new Date(filters.fromDate)}}
+      const [total_news, all_news] = await Promise.all([ 
+        this.prisma.news.count({where}), 
+        this.prisma.news.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take : limit,
+          skip
+        })
+      ])
+  
+      const total_page = Math.ceil(total_news / limit)
+      return({
+        data : all_news,
+        meta :{
+          total: total_news,
+          page : page,
+          limit : limit,
+          totalPages : total_page
+        }
+      })
+  
   }
 
   // statistique des news
@@ -116,10 +104,6 @@ export class NewsService {
   }
   async update(id: string, updateNewsDto: UpdateNewsDto, userId: string) {
     const news = await this.findOne(id);
-
-    // if (news.authorId !== userId) {
-    //   throw new ForbiddenException('You can only update your own news');
-    // }
 
     return this.prisma.news.update({
       where: { id },

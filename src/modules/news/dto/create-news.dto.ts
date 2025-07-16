@@ -29,13 +29,9 @@ export class CreateNewsDto {
     content: string;
 
 
-    @ApiProperty({
-        description: "URL de l'image associée à l'actualité",
-        example: 'https://example.com/image.jpg',
-        required: false,
-    })
+   @ApiProperty({ type: 'string', format: 'binary', isArray: true })
     @IsArray()
-    @IsString({ each:true})
+    @IsOptional()
     imageUrls: string[];
 
     @ApiProperty({

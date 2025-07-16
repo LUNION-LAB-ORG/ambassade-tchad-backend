@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreatePhotosDto } from '../dto/create-photos.dto';
+import { Photo, Prisma } from '@prisma/client';
+import { QueryPhotoDto } from '../dto/query-photo.dto';
+import { QueryResponseDto } from 'src/common/dto/query-response.dto';
 
 @Injectable()
 export class PhotosService {
@@ -9,40 +12,46 @@ export class PhotosService {
   async create(createPhotosDto: CreatePhotosDto) {
     const { title, description, imageUrl } = createPhotosDto;
 
-    const imageUrlString = Array.isArray(imageUrl) ? imageUrl[0] : imageUrl;
 
     return this.prisma.photo.create({
       data: {
         title,
         description,
-        imageUrl: imageUrlString,
+        imageUrl: imageUrl,
       },
     });
   }
 
-  async findAll() {
-    return this.prisma.photo.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+  async findAllWithFilters(filters: QueryPhotoDto ):Promise<QueryResponseDto<Photo>> {
+    const page = filters.page ?? 1
+    const limit = filters.limit ?? 10
+    const skip = limit * (page - 1)
+    const where : Prisma.PhotoWhereInput = {}
+    if(filters.title){where.title = {contains:filters.title, mode: 'insensitive'}}
+    if(filters.authorId){where.id = filters.authorId}
+    if(filters.toDate){where.createdAt= {lte:new Date(filters.toDate)}}
+    if(filters.fromDate){where.createdAt= {gte:new Date(filters.fromDate)}}
+    const [total_photo, all_photo] = await Promise.all([ 
+      this.prisma.photo.count({where}), 
+      this.prisma.photo.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take : limit,
+        skip
+      })
+    ])
 
-  async findAllWithFilters(filters: {
-    title?: string;
-    toDate?: Date;
-  }) {
-    return this.prisma.photo.findMany({
-      where: {
-        title: filters.title
-          ? { contains: filters.title, mode: 'insensitive' }
-          : undefined,
-        createdAt: filters.toDate
-          ? {
-              lte: filters.toDate,
-            }
-          : undefined,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const total_page = Math.ceil(total_photo / limit)
+    return({
+      data : all_photo,
+      meta :{
+        total: total_photo,
+        page : page,
+        limit : limit,
+        totalPages : total_page
+      }
+    })
+
   }
 
   async getStats() {
@@ -64,7 +73,6 @@ export class PhotosService {
 
   async update(id: string, updatePhotosDto: CreatePhotosDto) {
     const { title, description, imageUrl } = updatePhotosDto;
-    const imageUrlString = Array.isArray(imageUrl) ? imageUrl[0] : imageUrl;
 
 
     await this.findOne(id); // Vérifie d'abord que la photo existe
@@ -74,7 +82,7 @@ export class PhotosService {
       data: {
         title,
         description,
-        imageUrl: imageUrlString
+        imageUrl: imageUrl
       },
     });
 

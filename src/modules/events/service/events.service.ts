@@ -2,6 +2,9 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreateEventsDto } from '../dto/create-events.dto';
 import { UpdateEventsDto } from '../dto/update-events.dto';
+import { Prisma, Event as EventModel } from '@prisma/client';
+import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { QueryEventsDto } from '../dto/query-events.dto';
 
 @Injectable()
 export class EventsService {
@@ -25,52 +28,37 @@ export class EventsService {
     });
   }
 
-  async findAll(includeUnpublished = false) {
-    return this.prisma.event.findMany({
-      where: includeUnpublished ? {} : { published: true },
-      include: {
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async findAllWithFilters(filters: {
-    title?: string;
-    authorId?: string;
-    published?: boolean;
-    fromDate?: Date;
-    toDate?: Date;
-  }) {
-    return this.prisma.event.findMany({
-      where: {
-        title: filters.title
-          ? { contains: filters.title, mode: 'insensitive' }
-          : undefined,
-        authorId: filters.authorId,
-        published: filters.published,
-        createdAt: {
-          gte: filters.fromDate,
-          lte: filters.toDate,
-        },
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAllWithFilters(filters: QueryEventsDto ):Promise<QueryResponseDto<EventModel>> {
+     const page = filters.page ?? 1
+     const limit = filters.limit ?? 10
+     const skip = limit * (page - 1)
+     const where : Prisma.EventWhereInput = {}
+     if(filters.title){where.title = {contains:filters.title, mode: 'insensitive'}}
+     if(filters.authorId){where.id = filters.authorId}
+     if(typeof filters.published === 'boolean'){where.published = filters.published}
+     if(filters.toDate){where.createdAt= {lte:new Date(filters.toDate)}}
+     if(filters.fromDate){where.createdAt= {gte:new Date(filters.fromDate)}}
+     const [total_event, all_event] = await Promise.all([ 
+       this.prisma.event.count({where}), 
+       this.prisma.event.findMany({
+         where,
+         orderBy: { createdAt: 'desc' },
+         take : limit,
+         skip
+       })
+     ])
+ 
+     const total_page = Math.ceil(total_event / limit)
+     return({
+       data : all_event,
+       meta :{
+         total: total_event,
+         page : page,
+         limit : limit,
+         totalPages : total_page
+       }
+     })
+ 
   }
 
   async getStats() {

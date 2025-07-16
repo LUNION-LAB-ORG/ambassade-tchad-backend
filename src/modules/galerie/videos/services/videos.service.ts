@@ -2,6 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { UpdateVideosDto } from '../dto/update-videos.dto';
 import { CreateVideosDto } from '../dto/create-videos.dto';
+import { QueryVideoDto } from '../dto/query-video.dto';
+import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { Prisma, Video } from '@prisma/client';
 
 @Injectable()
 export class VideosService {
@@ -19,30 +22,37 @@ export class VideosService {
     });
   }
 
-  async findAll() {
-    return this.prisma.photo.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async findAllWithFilters(filters: {
-    title?: string;
-    toDate?: Date;
-  }) {
-    return this.prisma.photo.findMany({
-      where: {
-        title: filters.title
-          ? { contains: filters.title, mode: 'insensitive' }
-          : undefined,
-        createdAt: filters.toDate
-          ? {
-              lte: filters.toDate,
-            }
-          : undefined,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+  async findAllWithFilters(filters: QueryVideoDto ):Promise<QueryResponseDto<Video>> {
+      const page = filters.page ?? 1
+      const limit = filters.limit ?? 10
+      const skip = limit * (page - 1)
+      const where : Prisma.VideoWhereInput = {}
+      if(filters.title){where.title = {contains:filters.title, mode: 'insensitive'}}
+      if(filters.authorId){where.id = filters.authorId}
+      if(filters.toDate){where.createdAt= {lte:new Date(filters.toDate)}}
+      if(filters.fromDate){where.createdAt= {gte:new Date(filters.fromDate)}}
+      const [total_video, all_video] = await Promise.all([ 
+        this.prisma.video.count({where}), 
+        this.prisma.video.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take : limit,
+          skip
+        })
+      ])
+  
+      const total_page = Math.ceil(total_video / limit)
+      return({
+        data : all_video,
+        meta :{
+          total: total_video,
+          page : page,
+          limit : limit,
+          totalPages : total_page
+        }
+      })
+  
+    }
 
   async getStats() {
     const total = await this.prisma.video.count();

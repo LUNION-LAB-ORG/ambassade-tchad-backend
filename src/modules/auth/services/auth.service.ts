@@ -45,7 +45,7 @@ export class AuthService {
 
     // 1. Vérifier si l'utilisateur existe déjà
     const userExist = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase()},
+      where: { email: email.toLocaleLowerCase()},
     });
     if (userExist) {
       throw new ConflictException('Un utilisateur avec cet email existe déjà.');
@@ -58,7 +58,7 @@ export class AuthService {
     // 3. Créer l'utilisateur demandeur
     const newUser = await this.prisma.user.create({
       data: {
-        email,
+        email: email.toLocaleLowerCase(), // Utilisation de l'email en minuscules
         password: hashedPassword,
         firstName,
         lastName,
@@ -117,11 +117,12 @@ export class AuthService {
     //5. Générer l'OTP
     const otpCode = await this.otpService.generate(user.id);
 
-    //6. Envoyer l'OTP
-    const isSent = await this.twilioService.sendOtp({ phoneNumber: user.phoneNumber, otp: otpCode });
-    if (!isSent) {
-      throw new Error('Envoi de l\'OTP impossible');
-    }
+    // //6. Envoyer l'OTP
+    // const isSent = await this.twilioService.sendOtp({ phoneNumber: user.phoneNumber, otp: otpCode });
+    // if (!isSent) {
+    //   throw new Error('Envoi de l\'OTP impossible');
+    // }
+    console.log(otpCode)
 
     return {
       message: 'Un code OTP a été envoyé à votre numéro de téléphone',
@@ -198,7 +199,6 @@ export class AuthService {
     if (!isSent) {
       throw new Error('Envoi de l\'OTP impossible');
     }
-
     return { message: 'Un code OTP a été envoyé à votre numéro de téléphone. Il est valide 5 minutes.', otpSent: true, email: user.email };
   }
 

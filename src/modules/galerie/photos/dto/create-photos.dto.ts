@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsString, MaxLength, IsNotEmpty, IsArray } from "class-validator";
+import { IsString, MaxLength, IsNotEmpty, IsArray, IsOptional } from "class-validator";
 
 export class CreatePhotosDto {
     @ApiProperty({
@@ -26,14 +26,10 @@ export class CreatePhotosDto {
     @IsString({message: 'Le contenu doit être une chaîne de caractères.'})
     description: string;
 
-    @ApiProperty({
-        description: "URL de l'image associée à l'actualité",
-        example: ['https://example.com/image.jpg',"https://example.com/image.jpg"],
-        required: true,
-    })
+    @ApiProperty({ type: 'string', format: 'binary', isArray: true })
     @IsArray()
-    @IsString({ each:true})
-    imageUrl: string[];
+    @IsOptional()
+    imageUrl?: string[];
 
 }
 

@@ -16,75 +16,82 @@ import { UserRolesGuard } from 'src/modules/users/guards/user-roles.guard';
 import { Role } from '@prisma/client';
 import { CreateVideosDto } from '../dto/create-videos.dto';
 import { VideosService } from '../services/videos.service';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiResponse,
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { QueryVideoDto } from '../dto/query-video.dto';
 
-@ApiTags('Videos')
+@ApiTags('Vidéos')
 @Controller('videos')
-@UseGuards(JwtAuthGuard, UserRolesGuard)
-@UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
 export class VideosController {
-  VideosService: any;
   constructor(private readonly videosService: VideosService) {}
 
   @Post()
-  @ApiResponse({ status: 201, description: 'Video créée avec succès.' })
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
+  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  @ApiOperation({ summary: 'Créer une nouvelle vidéo' })
+  @ApiResponse({ status: 201, description: 'Vidéo créée avec succès.' })
   @ApiResponse({ status: 400, description: 'Requête invalide.' })
-  @ApiResponse({status:401, description:'Vous n\'ête pas autorisé'})
+  @ApiResponse({ status: 401, description: 'Vous n\'êtes pas autorisé' })
   create(@Body() dto: CreateVideosDto, @Request() req) {
     return this.videosService.create(dto);
   }
-  @Get()
-  @ApiResponse({ status: 200, description: 'Liste des vidéos récupérée avec succès.' })
 
-  findAll() {
-    return this.videosService.findAll();
-  }
-
-  @Get('/filter')
+  @Get('')
+  @ApiOperation({ summary: 'Lister les vidéos avec filtres' })
+  @ApiQuery({ name: 'title', required: false, description: 'Filtrer par titre' })
+  @ApiQuery({ name: 'authorId', required: false, description: 'Filtrer par auteur' })
+  @ApiQuery({ name: 'published', required: false, type: Boolean, description: 'Filtrer par publication' })
+  @ApiQuery({ name: 'page', required: false, description: 'Numéro de page' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Nombre d\'éléments par page' })
   @ApiResponse({ status: 200, description: 'Liste filtrée des vidéos récupérée avec succès.' })
-
-  filter(
-    @Query('title') title?: string,
-    @Query('toDate') toDate?: string,
-  ) {
-    return this.videosService.findAllWithFilters({
-      title,
-      toDate: toDate ? new Date(toDate) : undefined,
-    });
+  filter(@Query() filters: QueryVideoDto) {
+    return this.videosService.findAllWithFilters(filters);
   }
 
   @Get('/stats')
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
+  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  @ApiOperation({ summary: 'Obtenir les statistiques des vidéos' })
   @ApiResponse({ status: 200, description: 'Statistiques des vidéos récupérées avec succès.' })
   getStats() {
     return this.videosService.getStats();
   }
 
   @Get(':id')
-  @ApiResponse({ status: 200, description: 'Détails de la photo récupérés avec succès.' })
-  @ApiResponse({ status: 404, description: 'Video non trouvée.' })
+  @ApiOperation({ summary: 'Récupérer une vidéo par ID' })
+  @ApiResponse({ status: 200, description: 'Détails de la vidéo récupérés.' })
+  @ApiResponse({ status: 404, description: 'Vidéo non trouvée.' })
   findOne(@Param('id') id: string) {
     return this.videosService.findOne(id);
   }
 
   @Put(':id')
-  @ApiResponse({ status: 200, description: 'Video mise à jour avec succès.' })
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
+  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  @ApiOperation({ summary: 'Mettre à jour une vidéo' })
+  @ApiResponse({ status: 200, description: 'Vidéo mise à jour avec succès.' })
   @ApiResponse({ status: 400, description: 'Requête invalide.' })
-  @ApiResponse({ status: 404, description: 'Video non trouvée.' })
+  @ApiResponse({ status: 404, description: 'Vidéo non trouvée.' })
   update(@Param('id') id: string, @Body() dto: CreateVideosDto) {
     const updateVideo = this.videosService.update(id, dto);
     return {
-        message:"vidéo modifiée avec succès",
-        data: updateVideo
-    }
+      message: "Vidéo modifiée avec succès",
+      data: updateVideo
+    };
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
-  @ApiResponse({ status: 200, description: 'Video supprimée avec succès.' })
-  @ApiResponse({ status: 404, description: 'Video non trouvée.' })
+  @UserRoles(Role.ADMIN, Role.CONSUL)
+  @ApiOperation({ summary: 'Supprimer une vidéo' })
+  @ApiResponse({ status: 200, description: 'Vidéo supprimée avec succès.' })
+  @ApiResponse({ status: 404, description: 'Vidéo non trouvée.' })
   async remove(@Param('id') id: string, @Request() req) {
     await this.videosService.remove(id);
-    return { message:  `La vidéo avec l'id ${id} supprimé avec succès.` };
+    return { message:  `La vidéo avec l'id: ${id} supprimée avec succès.` };
   }
 }

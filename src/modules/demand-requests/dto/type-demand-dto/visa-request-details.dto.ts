@@ -21,15 +21,9 @@ import {
     PassportType,
     VisaType,
 } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class VisaRequestDetailsDto {
-    @ApiProperty({
-    description: 'Type de service (fixé à VISA)',
-    enum: ServiceType,
-    example: ServiceType.VISA,
-  })
-  readonly serviceType?: "VISA" = "VISA";
 
     @ApiProperty({
         description: "le prenom du demandeur de visa",
@@ -232,5 +226,4 @@ export class VisaRequestDetailsDto {
     @IsOptional()
     @IsEnum(VisaType)
     visaType?: VisaType;
-
 }

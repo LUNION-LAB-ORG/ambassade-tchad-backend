@@ -17,12 +17,9 @@ import { Transform, Type } from 'class-transformer';
 import {
     ServiceType,
     Gender,
-    MaritalStatus,
-    PassportType,
-    VisaType,
+    
     BirthActRequestType,
-    JustificationDocumentType,
-    OriginCountryParentRelationshipType,
+    
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

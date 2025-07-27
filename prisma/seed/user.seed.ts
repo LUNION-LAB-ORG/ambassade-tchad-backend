@@ -109,6 +109,17 @@ export async function userSeed() {
       status: 'ACTIVE',
       phoneNumber: '+2250709682009',
     },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'felix',
+      lastName: 'Mponou',
+      email: 'felix@gmail.com',
+      password: 'Felix@20256', // Sera haché
+      type: UserType.DEMANDEUR, // Type DEMANDEUR
+      role: null, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250709682001',
+    },
   ];
 
   for (const data of datas) {

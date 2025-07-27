@@ -113,8 +113,5 @@ export class LaissezPasserRequestDetailsDto {
   @IsNotEmpty()
   justificationDocumentNumber: string;
 
-  @ApiProperty({ description: "Date d'expiration du laissez-passer", example: "2025-12-31" })
-  @IsDateString()
-  @IsNotEmpty()
-  laissezPasserExpirationDate: string;
+
 }

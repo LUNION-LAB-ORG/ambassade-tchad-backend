@@ -6,9 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import {
-    JustificationDocumentType,
     RequestStatus,
-    Role,
     ServiceType,
     UserType,
     VisaType,
@@ -16,39 +14,25 @@ import {
 import { User } from '@prisma/client';
 import { CreateDemandRequestDto } from '../dto/create-demandRequest.dto';
 import { UpdateDemandRequestDto } from '../dto/update-damandRequest.dto';
-import { generateTicketNumber } from '../utils/ticket-generator.dto';
+import { generateTicketNumber, getTicketPrefix } from '../utils/ticket-generator.dto';
+import { CreateDocumentDto } from '../dto/type-demand-dto/documents.dto';
+import { isInstance } from 'class-validator';
 
 @Injectable()
 export class DemandRequestsService {
-    constructor(private readonly prisma: PrismaService) {}
-
-    private getTicketPrefix(serviceType: ServiceType): string {
-        switch (serviceType) {
-            case ServiceType.VISA:
-                return 'VISA';
-            case ServiceType.BIRTH_ACT_APPLICATION:
-                return 'BIRTH';
-            case ServiceType.CONSULAR_CARD:
-                return 'CARD';
-            case ServiceType.POWER_OF_ATTORNEY:
-                return 'POA';
-            case ServiceType.MARRIAGE_CAPACITY_ACT:
-                return 'MARRIAGE';
-            case ServiceType.DEATH_ACT_APPLICATION:
-                return 'DEATH';
-            case ServiceType.LAISSEZ_PASSER:
-                return 'LPASS';
-            case ServiceType.NATIONALITY_CERTIFICATE:
-                return 'NAT';
-            default:
-                return 'REQ';
-        }
+    trackRequestByTicket(ticket: string) {
+        throw new Error('Method not implemented.');
     }
+    constructor(private readonly prisma: PrismaService) { }
 
-    async create(dto: CreateDemandRequestDto, userId: string) {
-        const prefix = this.getTicketPrefix(dto.serviceType);
+    private async createRequestWithDetails(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        prefix: string,
+        details: any
+    ) {
         const ticketNumber = await generateTicketNumber(this.prisma, prefix);
-        const amount = this.calculateAmount(dto);
+        const amount = await this.calculateAmount(dto.serviceType);
 
         const request = await this.prisma.request.create({
             data: {
@@ -58,48 +42,7 @@ export class DemandRequestsService {
                 status: RequestStatus.NEW,
                 amount,
                 contactPhoneNumber: dto.contactPhoneNumber,
-
-                visaDetails: dto.visaDetails ? { create: { ...dto.visaDetails } } : undefined,
-
-                birthActDetails: dto.birthActDetails ? { create: { ...dto.birthActDetails } } : undefined,
-
-                consularCardDetails: dto.consularCardDetails ? { create: { ...dto.consularCardDetails } } : undefined,
-
-                laissezPasserDetails: dto.laissezPasserDetails
-                    ? {
-                          create: {
-                              ...dto.laissezPasserDetails,
-                              justificationDocumentType: dto.laissezPasserDetails.justificationDocumentType
-                                  ? (dto.laissezPasserDetails.justificationDocumentType as JustificationDocumentType)
-                                  : undefined,
-                              accompaniers: dto.laissezPasserDetails.accompanied
-                                  ? {
-                                        create: dto.laissezPasserDetails.accompaniers || [],
-                                    }
-                                  : undefined,
-                          },
-                      }
-                    : undefined,
-
-                marriageCapacityActDetails: dto.marriageCapacityActDetails ? { create: { ...dto.marriageCapacityActDetails } } : undefined,
-
-                deathActDetails: dto.deathActDetails ? { create: { ...dto.deathActDetails } } : undefined,
-
-                powerOfAttorneyDetails: dto.powerOfAttorneyDetails
-                    ? {
-                          create: {
-                              ...dto.powerOfAttorneyDetails,
-                              agentJustificationDocumentType: dto.powerOfAttorneyDetails.agentJustificationDocumentType
-                                  ? (dto.powerOfAttorneyDetails.agentJustificationDocumentType as JustificationDocumentType)
-                                  : undefined,
-                              principalJustificationDocumentType: dto.powerOfAttorneyDetails.principalJustificationDocumentType
-                                  ? (dto.powerOfAttorneyDetails.principalJustificationDocumentType as JustificationDocumentType)
-                                  : undefined,
-                          },
-                      }
-                    : undefined,
-
-                nationalityCertificateDetails: dto.nationalityCertificateDetails ? { create: { ...dto.nationalityCertificateDetails } } : undefined,
+                ...details,
             },
             include: {
                 visaDetails: true,
@@ -120,25 +63,498 @@ export class DemandRequestsService {
         };
     }
 
-    private calculateAmount(dto: CreateDemandRequestDto): number {
-        if (dto.serviceType === ServiceType.VISA && dto.visaDetails) {
-            const { durationMonths, visaType } = dto.visaDetails;
-            if (visaType === VisaType.SHORT_STAY && durationMonths > 3) {
-                throw new BadRequestException('La durée ne peut pas excéder 3 mois pour un visa de court séjour.');
-            }
-            return visaType === VisaType.SHORT_STAY ? 35000 : 70000;
+    async create(dto: CreateDemandRequestDto, userId: string, files: Express.Multer.File[]) {
+
+        // Création spécifique selon le type de service
+        switch (dto.serviceType) {
+            case ServiceType.VISA:
+                return this.createVisaRequest(dto, userId, files);
+                break;
+            case ServiceType.BIRTH_ACT_APPLICATION:
+                return this.createBirthActRequest(dto, userId, files);
+                break;
+            case ServiceType.CONSULAR_CARD:
+                return this.createConsularCardRequest(dto, userId, files);
+                break;
+            case ServiceType.POWER_OF_ATTORNEY:
+                return this.createPowerOfAttorneyRequest(dto, userId, files);
+                break;
+            case ServiceType.MARRIAGE_CAPACITY_ACT:
+                return this.createMarriageCapacityActRequest(dto, userId, files);
+                break;
+            case ServiceType.DEATH_ACT_APPLICATION:
+                return this.createDeathActRequest(dto, userId, files);
+                break;
+            case ServiceType.LAISSEZ_PASSER:
+                return this.createLaissezPasserRequest(dto, userId, files);
+                break;
+            case ServiceType.NATIONALITY_CERTIFICATE:
+                return this.createNationalityCertificateRequest(dto, userId, files);
+                break;
+            default:
+                throw new BadRequestException('Type de service non reconnu.');
         }
 
-        if (dto.serviceType === ServiceType.BIRTH_ACT_APPLICATION) return 2000;
-        if (dto.serviceType === ServiceType.CONSULAR_CARD) return 15000;
-        if (dto.serviceType === ServiceType.POWER_OF_ATTORNEY) return 8000;
-        if (dto.serviceType === ServiceType.MARRIAGE_CAPACITY_ACT) return 10000;
-        if (dto.serviceType === ServiceType.DEATH_ACT_APPLICATION) return 3000;
-        if (dto.serviceType === ServiceType.LAISSEZ_PASSER) return 5000;
-        if (dto.serviceType === ServiceType.NATIONALITY_CERTIFICATE) return 4000;
-
-        throw new BadRequestException('Type de service non reconnu ou invalide.');
     }
+
+    private formatDocumentsData(files: Express.Multer.File[] | undefined, userId: string): CreateDocumentDto[] {
+        if (!files || files.length === 0) {
+            return [];
+        }
+        return files.map(file => ({
+            fileName: file.originalname,
+            mimeType: file.mimetype,
+            filePath: file.path,
+            fileSizeKB: Math.ceil(file.size / 1024),
+            uploaderId: userId,
+        }));
+    }
+
+    private async createVisaRequest(dto: CreateDemandRequestDto, userId: string, files: Express.Multer.File[]) {
+
+        const { visaDetails, ...demande } = dto;
+        const visaDetailsObject = JSON.parse(visaDetails ?? "")
+        if (!visaDetailsObject) {
+            throw new BadRequestException("Les détails du visa sont requis.");
+        }
+        // Préparation des données de la requête
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType, visaDetailsObject?.durationMonths);
+
+        // Préparation des données du visa
+        const visaType = visaDetailsObject.durationMonths <= 3
+            ? VisaType.SHORT_STAY
+            : VisaType.LONG_STAY;
+
+        const finalVisaDetails = {
+            ...visaDetailsObject,
+            visaType,
+        };
+
+        // Préparation des Documents
+        const documentsData = this.formatDocumentsData(files, userId);
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                visaDetails: {
+                    create: finalVisaDetails
+                },
+                documents: {
+                    create: documentsData
+                }
+            },
+            include: {
+                visaDetails: true,
+                documents: true
+            },
+        });
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+    private async createBirthActRequest(dto: CreateDemandRequestDto, userId: string, files: Express.Multer.File[]) {
+        const { birthActDetails, ...demande } = dto;
+        const birthDetailsObject = JSON.parse(birthActDetails ?? "")
+        if (!birthDetailsObject) {
+            throw new BadRequestException("Les détails du l'extrait de naissance sont requis.");
+        }
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType, birthDetailsObject?.durationMonths);
+        const finalbirthDetails = {
+            ...birthDetailsObject,
+        };
+        // Préparation des Documents
+        const documentsData = this.formatDocumentsData(files, userId);
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                birthActDetails: {
+                    create: finalbirthDetails
+                },
+                documents: {
+                    create: documentsData
+                }
+            },
+            include: {
+                birthActDetails: true,
+                documents: true
+            },
+        });
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+
+    }
+
+    private async createConsularCardRequest(dto: CreateDemandRequestDto, userId: string, files: Express.Multer.File[]) {
+        const { consularCardDetails, ...demande } = dto;
+        const consularCardDetailsObject = JSON.parse(consularCardDetails ?? "")
+
+        if (!consularCardDetailsObject) {
+            throw new BadRequestException("Les détails du visa sont requis.");
+        }
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType, consularCardDetailsObject?.durationMonths);
+        const finalconsularCardDetails = {
+            ...consularCardDetailsObject,
+        };
+        // Préparation des Documents
+        const documentsData = this.formatDocumentsData(files, userId);
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                consularCardDetails: {
+                    create: finalconsularCardDetails
+                },
+                documents: {
+                    create: documentsData
+                }
+            },
+            include: {
+                consularCardDetails: true,
+                documents: true
+            },
+        });
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+    private async createPowerOfAttorneyRequest(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        files: Express.Multer.File[]
+    ) {
+        const { powerOfAttorneyDetails, ...demande } = dto;
+
+        const powerOfAttorneyDetailsObject = JSON.parse(powerOfAttorneyDetails ?? "");
+
+        if (!powerOfAttorneyDetailsObject) {
+            throw new BadRequestException("Les détails de la procuration sont requis.");
+        }
+
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType);
+
+        const finalPowerOfAttorneyDetails = {
+            ...powerOfAttorneyDetailsObject,
+            agentJustificationDocumentType: powerOfAttorneyDetailsObject.agentJustificationDocumentType,
+            principalJustificationDocumentType: powerOfAttorneyDetailsObject.principalJustificationDocumentType,
+        };
+
+        const documentsData = this.formatDocumentsData(files, userId);
+
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                powerOfAttorneyDetails: {
+                    create: finalPowerOfAttorneyDetails,
+                },
+                documents: {
+                    create: documentsData,
+                },
+            },
+            include: {
+                powerOfAttorneyDetails: true,
+                documents: true,
+            },
+        });
+
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+
+    private async createMarriageCapacityActRequest(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        files: Express.Multer.File[]
+    ) {
+        const { marriageCapacityActDetails, ...demande } = dto;
+
+        const marriageCapacityActDetailsObject = JSON.parse(marriageCapacityActDetails ?? "");
+
+        if (!marriageCapacityActDetailsObject) {
+            throw new BadRequestException("Les détails de l'acte de capacité de mariage sont requis.");
+        }
+
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType);
+
+        const documentsData = this.formatDocumentsData(files, userId);
+
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                marriageCapacityActDetails: {
+                    create: {
+                        ...marriageCapacityActDetailsObject,
+                    },
+                },
+                documents: {
+                    create: documentsData,
+                },
+            },
+            include: {
+                marriageCapacityActDetails: true,
+                documents: true,
+            },
+        });
+
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+
+    private async createDeathActRequest(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        files: Express.Multer.File[]
+    ) {
+        const { deathActDetails, ...demande } = dto;
+
+        const deathActDetailsObject = JSON.parse(deathActDetails ?? '');
+
+        if (!deathActDetailsObject) {
+            throw new BadRequestException('Les détails de l\'acte de décès sont requis.');
+        }
+
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType);
+        const documentsData = this.formatDocumentsData(files, userId);
+
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                deathActDetails: {
+                    create: {
+                        ...deathActDetailsObject,
+                    },
+                },
+                documents: {
+                    create: documentsData,
+                },
+            },
+            include: {
+                deathActDetails: true,
+                documents: true,
+            },
+        });
+
+        return {
+            message: 'Demande soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+
+    private async createLaissezPasserRequest(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        files: Express.Multer.File[],
+    ) {
+        const { laissezPasserDetails, ...demande } = dto;
+
+        let laissezPasserDetailsObject: any;
+
+        if (typeof laissezPasserDetails === 'string') {
+            try {
+                laissezPasserDetailsObject = JSON.parse(laissezPasserDetails);
+            } catch (error) {
+                throw new BadRequestException("Format JSON invalide pour les détails du laissez-passer.");
+            }
+        } else if (typeof laissezPasserDetails === 'object' && laissezPasserDetails !== null) {
+            laissezPasserDetailsObject = laissezPasserDetails;
+        } else {
+            throw new BadRequestException("Les détails du laissez-passer sont requis.");
+        }
+
+        // Parse accompaniers s'ils sont sous forme string JSON
+        if (laissezPasserDetailsObject.accompanied && typeof laissezPasserDetailsObject.accompaniers === 'string') {
+            try {
+                laissezPasserDetailsObject.accompaniers = JSON.parse(laissezPasserDetailsObject.accompaniers);
+            } catch (error) {
+                throw new BadRequestException('Le champ accompaniers doit être un tableau JSON valide.');
+            }
+        }
+
+        const prefix = getTicketPrefix(demande.serviceType);
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType);
+
+        const documentsData = this.formatDocumentsData(files, userId);
+
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                laissezPasserDetails: {
+                    create: {
+                        ...laissezPasserDetailsObject,
+                        justificationDocumentType: laissezPasserDetailsObject.justificationDocumentType,
+                        accompaniers: laissezPasserDetailsObject.accompanied
+                            ? {
+                                create: laissezPasserDetailsObject.accompaniers || [],
+                            }
+                            : undefined,
+                    },
+                },
+                documents: {
+                    create: documentsData,
+                },
+            },
+            include: {
+                laissezPasserDetails: {
+                    include: { accompaniers: true },
+                },
+                documents: true,
+            },
+        });
+
+        return {
+            message: 'Demande de laissez-passer soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+
+    private async createNationalityCertificateRequest(
+        dto: CreateDemandRequestDto,
+        userId: string,
+        files: Express.Multer.File[],
+    ) {
+        const { nationalityCertificateDetails, ...demande } = dto;
+
+        // 1. Parser les détails depuis JSON (si nécessaire)
+        const details = typeof nationalityCertificateDetails === 'string'
+            ? JSON.parse(nationalityCertificateDetails)
+            : nationalityCertificateDetails;
+
+        if (!details) {
+            throw new BadRequestException("Les détails du certificat de nationalité sont requis.");
+        }
+
+        // 2. Générer le ticket et le montant
+        const prefix = getTicketPrefix(demande.serviceType); // ex: "NAT-"
+        const ticketNumber = await generateTicketNumber(this.prisma, prefix);
+        const amount = await this.calculateAmount(dto.serviceType);
+
+        // 3. Formater les fichiers
+        const documentsData = this.formatDocumentsData(files, userId);
+
+        // 4. Créer la demande
+        const request = await this.prisma.request.create({
+            data: {
+                userId,
+                ticketNumber,
+                serviceType: dto.serviceType,
+                status: RequestStatus.NEW,
+                amount,
+                contactPhoneNumber: dto.contactPhoneNumber,
+                nationalityCertificateDetails: {
+                    create: {
+                        ...details,
+                    },
+                },
+                documents: {
+                    create: documentsData,
+                },
+            },
+            include: {
+                nationalityCertificateDetails: true,
+                documents: true,
+            },
+        });
+
+        return {
+            message: 'Demande de certificat de nationalité soumise avec succès.',
+            ticketNumber: request.ticketNumber,
+            data: request,
+        };
+    }
+
+    private async calculateAmount(serviceType: ServiceType, durationMonths?: number): Promise<number> {
+        const service = await this.prisma.service.findUnique({
+            where: { type: serviceType },
+        });
+
+        if (!service) {
+            throw new BadRequestException('Type de service non reconnu ou invalide.');
+        }
+        if (service.isPriceVariable) {
+
+            if (serviceType === ServiceType.VISA && durationMonths) {
+
+                if (durationMonths <= 3) {
+                    // Court séjour : injecter automatiquement le type de visa
+                    return service.defaultPrice;
+                } else {
+                    // Long séjour : injecter automatiquement le type de visa
+                    return service.defaultPrice * 2;
+                }
+            } else {
+                throw new BadRequestException('Renseigner la durée du Visa');
+            }
+
+        }
+        return service.defaultPrice;
+    }
+
 
     async getAll(page = 1, limit = 10) {
         const [total, data] = await Promise.all([
@@ -331,4 +747,111 @@ export class DemandRequestsService {
             byServiceType: Object.fromEntries(byServiceType.map((s) => [s.serviceType, s._count])),
         };
     }
+
+    // Statistiques pour le demandeur
+    async getStatsForUser(userId: string) {
+        const userExists = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true },
+        });
+
+        if (!userExists) {
+            throw new NotFoundException('Utilisateur non trouvé.');
+        }
+
+        const [total, byStatus, byServiceType] = await Promise.all([
+            this.prisma.request.count({ where: { userId } }),
+            this.prisma.request.groupBy({
+                by: ['status'],
+                where: { userId },
+                _count: true,
+            }),
+            this.prisma.request.groupBy({
+                by: ['serviceType'],
+                where: { userId },
+                _count: true,
+            }),
+        ]);
+
+        return {
+            total,
+            byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count])),
+            byServiceType: Object.fromEntries(byServiceType.map((s) => [s.serviceType, s._count])),
+        };
+    }
+
+    async getUserRequests(userId: string, page = 1, limit = 10) {
+        const [total, data] = await Promise.all([
+            this.prisma.request.count({
+                where: { userId },
+            }),
+            this.prisma.request.findMany({
+                where: { userId },
+                orderBy: { submissionDate: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    visaDetails: true,
+                    birthActDetails: true,
+                    consularCardDetails: true,
+                    laissezPasserDetails: { include: { accompaniers: true } },
+                    marriageCapacityActDetails: true,
+                    deathActDetails: true,
+                    powerOfAttorneyDetails: true,
+                    nationalityCertificateDetails: true,
+                },
+            }),
+        ]);
+
+        return {
+            meta: {
+                total,
+                page,
+                limit,
+                lastPage: Math.ceil(total / limit),
+            },
+            data,
+        };
+    }
+
+    async getServicesPrices() {
+        const services = await this.prisma.service.findMany({
+            select: {
+                type: true,
+                defaultPrice: true,
+                isPriceVariable: true,
+            },
+        });
+
+        if (services.length === 0) {
+            throw new NotFoundException('Aucun service trouvé.');
+        }
+
+        return services;
+    }
+
+    async findByTicket(ticket: string, userId: string) {
+        const request = await this.prisma.request.findUnique({
+            where: { ticketNumber: ticket },
+            include: {
+                user: { select: { id: true, email: true, firstName: true, lastName: true } },
+                visaDetails: true,
+                birthActDetails: true,
+                consularCardDetails: true,
+                laissezPasserDetails: { include: { accompaniers: true } },
+                marriageCapacityActDetails: true,
+                deathActDetails: true,
+                powerOfAttorneyDetails: true,
+                nationalityCertificateDetails: true,
+            },
+        });     
+        if (!request) {
+            throw new NotFoundException('Demande non trouvée.');
+        }   
+        if (request.userId !== userId) {
+            throw new ForbiddenException('Accès refusé à cette demande.');
+        }   
+        return request;
+    }
+
 }

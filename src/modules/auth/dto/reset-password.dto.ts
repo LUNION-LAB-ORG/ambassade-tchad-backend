@@ -38,17 +38,26 @@ export class ResetPasswordDto {
     @Transform(({ value }) => value.trim())
     newPassword: string;
 
-    @ApiProperty({
-        description: "Code de vérification OTP à 4 chiffres",
-        example: '1234',
-        required: true,
-        maxLength: 4,
-        minLength: 4,
-    })
-    @IsNotEmpty({ message: 'Le code OTP est obligatoire.' })
-    @IsString({ message: 'Le code OTP doit être une chaîne de caractères.' })
-    @MaxLength(4, { message: 'Le code OTP doit contenir 4 caractères.' })
-    @MinLength(4, { message: 'Le code OTP doit contenir 4 caractères.' })
-    @Transform(({ value }) => value.trim())
-    otp: string;
+    // @ApiProperty({
+    //     description: "Code de vérification OTP à 4 chiffres",
+    //     example: '1234',
+    //     required: true,
+    //     maxLength: 4,
+    //     minLength: 4,
+    // })
+    // @IsNotEmpty({ message: 'Le code OTP est obligatoire.' })
+    // @IsString({ message: 'Le code OTP doit être une chaîne de caractères.' })
+    // @MaxLength(4, { message: 'Le code OTP doit contenir 4 caractères.' })
+    // @MinLength(4, { message: 'Le code OTP doit contenir 4 caractères.' })
+    // @Transform(({ value }) => value.trim())
+    // otp: string;*
+
+    @IsString()
+    @MinLength(6, { message: 'Le mot de passe actuel doit contenir au moins 6 caractères' })
+    currentPassword: string;
+
+    @IsString()
+    @MinLength(6, { message: 'Le mot de passe doit contenir au moins 6 caractères' })
+    confirmPassword: string;
 }
+

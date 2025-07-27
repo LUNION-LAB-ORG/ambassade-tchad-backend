@@ -420,7 +420,7 @@ model LaissezPasserRequestDetails {
   justificationDocumentType   JustificationDocumentType?
   justificationDocumentNumber String?
 
-  laissezPasserExpirationDate DateTime // Date de validité du Laissez-Passer délivré
+  laissezPasserExpirationDate DateTime? // Date de validité du Laissez-Passer délivré
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -57,7 +57,7 @@ export class NewsController {
   ) {
     const fileMap: Record<string, string> = {};
     files.forEach((file, i) => {
-      fileMap[`image_${i}`] = file.path.replaceAll('\\', '/');
+      fileMap[`image_${i}`] = file.path;
     });
 
     const compressedPaths = await GenerateConfigService.compressImages(

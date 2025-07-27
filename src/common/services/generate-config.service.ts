@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { GenerateDataService } from "./generate-data.service";
+import { v4 as uuidv4 } from 'uuid';
 import * as sharp from 'sharp';
 import * as fs from 'fs';
 
@@ -29,7 +30,6 @@ export class GenerateConfigService {
         return imageConfig;
     }
 
-
     static generateConfigMultipleImageUpload(destination: string, name?: string) {
         return {
             storage: diskStorage({
@@ -42,13 +42,35 @@ export class GenerateConfigService {
                 },
             }),
             fileFilter: (req, file, cb) => {
-                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
+                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf)$/)) {
                     return cb(new Error('Seuls les fichiers image sont acceptés'), false);
                 }
                 cb(null, true);
             }
         };
     }
+
+    static generateConfigMultipleDocumentsUpload(destination: string) {
+        return {
+            storage: diskStorage({
+                destination,
+                filename: (req, file, cb) => {
+                    const ext = extname(file.originalname);
+                    const baseName = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const fileName = `${baseName}_${timestamp}${ext}`;
+                    cb(null, fileName);
+                }
+            }),
+            fileFilter: (req, file, cb) => {
+                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf)$/i)) {
+                    return cb(new Error('Seuls les fichiers image ou PDF sont acceptés'), false);
+                }
+                cb(null, true);
+            },
+        };
+    }
+
 
     static async compressImages(
         fileMap: Record<string, string>, // <-- entrée modifiée
@@ -74,7 +96,13 @@ export class GenerateConfigService {
                 const ext = extname(path).toLowerCase();
                 if (!supportedExts.includes(ext)) continue;
 
-                const originalFilename = path.replaceAll("\\", "/").split('/').pop() ?? 'image';
+                let originalFilename = "";
+                if (path.includes("\\")) {
+                    originalFilename = path.split("\\",).pop() ?? 'image';
+                } else {
+                    originalFilename = path.split("/",).pop() ?? 'image';
+                }
+                
                 const [nameWithoutExt] = originalFilename.split(ext);
 
                 let finalFilename = originalFilename;
@@ -127,7 +155,7 @@ export class GenerateConfigService {
                     }
                 }
 
-                compressedPaths[key] = finalPath.replaceAll("\\", "/");
+                compressedPaths[key] = finalPath;
 
             } catch (err) {
                 console.error(`Erreur lors de la compression de ${path} :`, err);
@@ -136,7 +164,5 @@ export class GenerateConfigService {
 
         return compressedPaths;
     }
-
-
 
 }

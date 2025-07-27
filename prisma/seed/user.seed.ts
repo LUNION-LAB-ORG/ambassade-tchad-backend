@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient, UserType, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient(); // Simplifié pour le contexte
 
@@ -63,6 +63,63 @@ export async function userSeed() {
       status: 'ACTIVE',
       phoneNumber: '4444444444',
     },
+    
+    
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Andy',
+      lastName: 'Kouakou',
+      email: 'andy@gmail.com',
+      password: 'Andy@2025', // Sera haché
+      type: UserType.PERSONNEL, // Type DEMANDEUR
+      role: Role.CHEF_SERVICE, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250554020623',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Thibault',
+      lastName: 'Pascal',
+      email: 'pascal@gmail.com',
+      password: 'Pascal@2025', // Sera haché
+      type: UserType.PERSONNEL, // Type DEMANDEUR
+      role: Role.ADMIN, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250152358036',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Fatem',
+      lastName: 'Coulibaly',
+      email: 'fatem@gmail.com',
+      password: 'Fatem@2025', // Sera haché
+      type: UserType.PERSONNEL, // Type DEMANDEUR
+      role: Role.CHEF_SERVICE, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250758618662',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'Felicia',
+      lastName: 'Mponou',
+      email: 'felicia@gmail.com',
+      password: 'Felicia@2025', // Sera haché
+      type: UserType.DEMANDEUR, // Type DEMANDEUR
+      role: null, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250709682009',
+    },
+    {
+      // Un utilisateur DEMANDEUR pour les tests de l'espace demandeur
+      firstName: 'felix',
+      lastName: 'Mponou',
+      email: 'felix@gmail.com',
+      password: 'Felix@20256', // Sera haché
+      type: UserType.DEMANDEUR, // Type DEMANDEUR
+      role: null, // Le rôle est null pour les clients, comme défini dans le schéma
+      status: 'ACTIVE',
+      phoneNumber: '+2250709682001',
+    },
   ];
 
   for (const data of datas) {
@@ -72,7 +129,7 @@ export async function userSeed() {
 
     try {
       await prisma.user.upsert({
-        where: { email: data.email }, // Cherche un utilisateur par son email
+        where: { email: data.email.toLowerCase() }, // Cherche un utilisateur par son email
         update: {
           ...rest, // Met à jour les autres champs
           password: hash, // Met à jour le mot de passe haché

@@ -119,7 +119,7 @@ model Request {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Type de demande (Visa, Acte de Naissance, etc.)
+  // Type de demande (Visa, Acte de Naissance, etc.) client
   serviceType ServiceType
 
   // Statut actuel de la demande
@@ -170,11 +170,15 @@ model Request {
   // Relation 1-à-1 pour le paiement
   payment Payment?
 
+  
+
   @@index([ticketNumber])
   @@index([status])
   @@index([serviceType])
   @@index([submissionDate])
   @@index([userId])
+
+
 }
 
 model Document {
@@ -257,7 +261,7 @@ model Payment {
 
 // Enum pour le type de passeport
 enum PassportType {
-  ORDINARY
+  ORDINARY // ordinaire
   SERVICE
   DIPLOMATIC
 }
@@ -266,24 +270,20 @@ enum PassportType {
 enum VisaType {
   SHORT_STAY
   LONG_STAY
-  TRANSIT
-  OTHER
 }
 
 // Enum pour le genre
 enum Gender {
   MALE
   FEMALE
-  OTHER
 }
 
 // Enum pour la situation familiale
 enum MaritalStatus {
-  SINGLE
+  SINGLE // celibataire
   MARRIED
   DIVORCED
-  WIDOWED
-  OTHER
+  WIDOWED // veuf/ veuve
 }
 
 model VisaRequestDetails {
@@ -324,8 +324,8 @@ model VisaRequestDetails {
 }
 
 enum BirthActRequestType {
-  NEWBORN
-  RENEWAL
+  NEWBORN // nouveau-né
+  RENEWAL // renouvellé
 }
 
 model BirthActRequestDetails {
@@ -355,9 +355,7 @@ model BirthActRequestDetails {
 
 enum JustificationDocumentType {
   PASSPORT
-  NATIONAL_ID_CARD
-  BIRTH_CERTIFICATE
-  OTHER
+  NATIONAL_ID_CARD // CNI
 }
 
 model ConsularCardRequestDetails {
@@ -414,7 +412,7 @@ model LaissezPasserRequestDetails {
   motherFullName String?
 
   destination  String?
-  travelReason String? @db.Text
+  travelReason String? @db.Text // la raison du voyage
 
   accompanied  Boolean       @default(false)
   accompaniers Accompanier[] // Correction : relation 1-à-plusieurs vers Accompanier
@@ -422,7 +420,7 @@ model LaissezPasserRequestDetails {
   justificationDocumentType   JustificationDocumentType?
   justificationDocumentNumber String?
 
-  laissezPasserExpirationDate DateTime // Date de validité du Laissez-Passer délivré
+  laissezPasserExpirationDate DateTime? // Date de validité du Laissez-Passer délivré
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -517,7 +515,7 @@ model PowerOfAttorneyRequestDetails {
   principalAddress                   String?
 
   powerOfType String? // Nous laissons String? pour l'instant comme discuté.
-  reason      String? @db.Text
+  reason      String? @db.Text // raison
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -562,7 +560,7 @@ model News {
   id        String   @id @default(uuid())
   title     String
   content   String   @db.Text
-  imageUrl  String?
+  imageUrls  String[]
   published Boolean  @default(false)
   authorId  String
   author    User     @relation("AuthorNews", fields: [authorId], references: [id], onDelete: Restrict)
@@ -581,7 +579,7 @@ model Event {
   description String   @db.Text
   eventDate   DateTime
   location    String?
-  imageUrl    String?
+  imageUrl   String[]
   published   Boolean  @default(false)
   authorId    String
   author      User     @relation("AuthorEvent", fields: [authorId], references: [id], onDelete: Restrict)
@@ -598,7 +596,7 @@ model Photo {
   id          String   @id @default(uuid())
   title       String?
   description String?
-  imageUrl    String
+  imageUrl    String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

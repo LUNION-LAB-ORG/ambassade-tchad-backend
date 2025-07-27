@@ -10,7 +10,7 @@ export async function serviceSeed() {
       type: ServiceType.VISA,
       name: 'Demande de Visa',
       description: 'Demande de visa pour un court ou long séjour.',
-      defaultPrice: 35000.0, // Prix du court séjour
+      defaultPrice: 35000.0, // Prix du court séjour, le prix est multiplié par 2 pour les lo,gs séjours
       isPriceVariable: true, // Le prix varie en fonction du type de visa
     },
     {

@@ -20,6 +20,12 @@ import { SocketIoModule } from 'src/socket-io/socket-io.module';
 import { TwilioModule } from 'src/twilio/twilio.module';
 import { EmailModule } from 'src/email/email.module';
 import { JsonWebTokenModule } from 'src/json-web-token/json-web-token.module';
+import { NewsModule } from './modules/news/news.module';
+import { EventsModule } from './modules/events/events.module';
+import { VideosModule } from './modules/galerie/videos/videos.module';
+import { PhotosModule } from './modules/galerie/photos/photos.module';
+import { DemandRequestsModule } from './modules/demand-requests/demand-requests.module';
+
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -43,8 +49,14 @@ import { JsonWebTokenModule } from 'src/json-web-token/json-web-token.module';
     SocketIoModule,
     TwilioModule,
     EmailModule,
+    NewsModule,
+   EventsModule,
+   PhotosModule,
+   VideosModule,
+   DemandRequestsModule,
    
   ],
+ 
 })
 
 export class AppModule { }

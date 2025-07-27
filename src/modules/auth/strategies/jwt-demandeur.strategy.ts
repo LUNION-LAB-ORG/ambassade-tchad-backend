@@ -18,21 +18,40 @@ export class JwtClientStrategy extends PassportStrategy(Strategy, 'jwt-demandeur
     });
   }
 
-  async validate(payload: { sub: string; type: UserType, role: Role | null }) {
-    const { sub: userId, type: userType, role } = payload;
+  // async validate(payload: { sub: string; type: UserType, role: Role | null }) {
+  //   const { sub: userId, type: userType, role } = payload;
+
+  //   if (userType !== UserType.DEMANDEUR) {
+  //     throw new UnauthorizedException('Type de jeton invalide pour cette ressource.');
+  //   }
+
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId, status: UserStatus.ACTIVE, type: UserType.DEMANDEUR, role },
+  //   });
+
+  //   if (!user) {
+  //     throw new UnauthorizedException('Utilisateur demandeur non trouvé ou inactif');
+  //   }
+  //   const { password, ...rest } = user;
+  //   return rest;
+  // }
+  async validate(payload: { sub: string; type: UserType }) {
+    const { sub: userId, type: userType } = payload;
 
     if (userType !== UserType.DEMANDEUR) {
       throw new UnauthorizedException('Type de jeton invalide pour cette ressource.');
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id: userId, status: UserStatus.ACTIVE, type: UserType.DEMANDEUR, role },
+      where: { id: userId },
     });
 
-    if (!user) {
+    if (!user || user.status !== UserStatus.ACTIVE || user.type !== UserType.DEMANDEUR) {
       throw new UnauthorizedException('Utilisateur demandeur non trouvé ou inactif');
     }
+
     const { password, ...rest } = user;
     return rest;
   }
+
 }

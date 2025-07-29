@@ -33,12 +33,14 @@ import { UserRolesGuard } from '../guards/user-roles.guard';
 import { Request } from 'express';
 import { QueryUserDto } from '../dto/query-user.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { UserStatsResponse } from '../responses/user-stats.response';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
+  @Post()
   @ApiOperation({ summary: 'Créer un nouvel utilisateur du personnel' })
   @ApiCreatedResponse({
     description: 'Utilisateur du personnel créé avec succès. Le mot de passe initial est généré.',
@@ -65,11 +67,10 @@ export class UsersController {
     status: HttpStatus.FORBIDDEN,
     description: 'Accès refusé : Seul un administrateur peut créer des utilisateurs du personnel.',
   })
-  @ApiBody({ type: CreateUserDto })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
+  @ApiBody({ type: CreateUserDto })
   @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL)
-  @Post()
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
   async create(
     @Req() req: Request,
     @Body() createUserDto: CreateUserDto,
@@ -77,6 +78,15 @@ export class UsersController {
     return this.usersService.create(req, createUserDto);
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Statistiques globales des utilisateurs' })
+  @ApiResponse({ status: 200, type: UserStatsResponse, description: 'Statistiques globales des utilisateurs.' })
+  @UseGuards(JwtAuthGuard)
+  async getStats() {
+    return this.usersService.stats();
+  }
+
+  @Get(':id/profile')
   @ApiOperation({ summary: "Obtenir les détails du profil d'un utilisateur" })
   @ApiOkResponse({
     description: 'Profil utilisateur récupéré avec succès',
@@ -87,11 +97,11 @@ export class UsersController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
   detail(@Param('id') userId: string): Promise<Omit<User, 'password'>> {
     return this.usersService.detail(userId);
   }
 
+  @Get()
   @ApiOperation({ summary: 'Obtenir la liste de tous les utilisateurs avec des options de filtrage et pagination (nécessite un rôle PERSONNEL)' })
   @ApiOkResponse({
     description: 'Liste des utilisateurs récupérée avec succès.',
@@ -99,11 +109,12 @@ export class UsersController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get()
   async findAll(@Query() queryDto: QueryUserDto): Promise<QueryResponseDto<Omit<User, 'password'>>> {
     return this.usersService.findAll(queryDto);
   }
 
+
+  @Patch('me')
   @ApiOperation({ summary: 'Mettre à jour le profil de l\'utilisateur' })
   @ApiOkResponse({
     description: 'Profil utilisateur mis à jour avec succès.',
@@ -115,7 +126,6 @@ export class UsersController {
   @ApiBody({ type: UpdateUserDto })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Patch('me')
   async update(
     @Req() req: Request,
     @Body() updateUserDto: UpdateUserDto,
@@ -123,6 +133,7 @@ export class UsersController {
     return this.usersService.update(req, updateUserDto);
   }
 
+  @Patch('update/:id')
   @ApiOperation({ summary: 'Mettre à jour le profil d\'un utilisateur demandeur' })
   @ApiOkResponse({
     description: 'Profil utilisateur mis à jour avec succès.',
@@ -131,10 +142,9 @@ export class UsersController {
   @ApiBadRequestResponse({
     description: 'Données de mise à jour invalides.',
   })
-  @ApiBody({ type: UpdateUserDto })
   @ApiBearerAuth()
+  @ApiBody({ type: UpdateUserDto })
   @UseGuards(JwtDemandeurAuthGuard)
-  @Patch('update/:id')
   async updateClient(
     @Req() req: Request,
     @Body() updateUserDto: UpdateUserDto,
@@ -142,6 +152,7 @@ export class UsersController {
     return this.usersService.update(req, updateUserDto);
   }
 
+  @Patch('deactivate/:id')
   @ApiOperation({ summary: 'Désactiver un utilisateur par son ID (changement de statut en INACTIVE, nécessite un rôle ADMIN)' })
   @ApiOkResponse({
     description: 'Utilisateur désactivé avec succès.',
@@ -155,13 +166,13 @@ export class UsersController {
     description: 'L\'utilisateur est déjà désactivé ou vous ne pouvez pas vous désactiver vous-même.',
   })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN)
-  @Patch('deactivate/:id')
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
   async deactivate(@Req() req: Request, @Param('id') id: string) {
     return this.usersService.deactivate(req, id);
   }
 
+  @Patch('activate/:id')
   @ApiOperation({ summary: 'Activer un utilisateur par son ID (changement de statut en ACTIVE, nécessite un rôle ADMIN)' })
   @ApiOkResponse({
     description: 'Utilisateur activé avec succès.',
@@ -175,13 +186,13 @@ export class UsersController {
     description: 'L\'utilisateur est déjà actif.',
   })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN)
-  @Patch('activate/:id')
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
   async activate(@Req() req: Request, @Param('id') id: string) {
     return this.usersService.activate(req, id);
   }
 
+  @Delete(':id')
   @ApiOperation({ summary: 'Supprimer définitivement un utilisateur par son ID (nécessite un rôle ADMIN)' })
   @ApiOkResponse({
     description: 'Utilisateur supprimé définitivement avec succès.',
@@ -194,9 +205,8 @@ export class UsersController {
     description: 'Utilisateur non trouvé.',
   })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN)
-  @Delete(':id')
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
   async delete(@Req() req: Request, @Param('id') id: string) {
     return this.usersService.remove(req, id);
   }

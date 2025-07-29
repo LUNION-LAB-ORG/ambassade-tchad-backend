@@ -1,4 +1,3 @@
-// src/modules/demand-requests/dto/get-demandRequests-filter.dto.ts
 import { RequestStatus, ServiceType } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString } from 'class-validator';
 
@@ -25,9 +24,17 @@ export class GetDemandRequestsFilterDto {
 
   @IsOptional()
   @IsNumberString()
-  page?: string;
+  page?: number;
 
   @IsOptional()
   @IsNumberString()
-  limit?: string;
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  ticketNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  contactPhoneNumber?: string;
 }

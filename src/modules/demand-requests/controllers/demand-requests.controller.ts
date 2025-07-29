@@ -8,10 +8,8 @@ import {
     Req,
     UseGuards,
     Query,
-    ValidationPipe,
     UseInterceptors,
     UploadedFiles,
-    UnauthorizedException,
 } from '@nestjs/common';
 import {
     ApiBody,
@@ -59,18 +57,18 @@ export class DemandRequestsController {
     constructor(private readonly demandRequestsService: DemandRequestsService) { }
 
     @Post()
-    @UseGuards(JwtDemandeurAuthGuard)
-    @UseInterceptors(
-        AnyFilesInterceptor(GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
-    )
+    @ApiOperation({ summary: 'Créer une nouvelle demande avec fichiers PDF' })
+    @ApiResponse({ status: 201, description: 'Demande créée avec succès.' })
+    @ApiResponse({ status: 400, description: 'Requête invalide.' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
         description: 'Formulaire de demande + fichiers PDF',
         type: CreateDemandRequestDto,
     })
-    @ApiOperation({ summary: 'Créer une nouvelle demande avec fichiers PDF' })
-    @ApiResponse({ status: 201, description: 'Demande créée avec succès.' })
-    @ApiResponse({ status: 400, description: 'Requête invalide.' })
+    @UseInterceptors(
+        AnyFilesInterceptor(GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
+    )
+    @UseGuards(JwtDemandeurAuthGuard)
     async create(
         @Body() dto: CreateDemandRequestDto,
         @UploadedFiles() files: Express.Multer.File[],
@@ -81,133 +79,35 @@ export class DemandRequestsController {
         return this.demandRequestsService.create(dto, user.id, files);
     }
 
-    @Get('me')
-    @UseGuards(JwtDemandeurAuthGuard)
-    async getMyRequests(
-        @Req() req: Request,
-        @Query('page') page: number,
-        @Query('limit') limit: number
-    ) {
-        const user = req.user as User;
-        return this.demandRequestsService.getUserRequests(user.id, Number(page) || 1, Number(limit) || 10);
-    }
-
-    @Get('track/:ticket')
-    @UseGuards(JwtDemandeurAuthGuard)
-    @ApiOperation({ summary: 'Suivre une demande par son numéro de ticket' })
-    @ApiResponse({ status: 200, description: 'Détails de la demande.' })
-    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
-    async trackByTicket(@Param('ticket') ticket: string, @Req() req) {
-        return this.demandRequestsService.trackByTicket(ticket, req.user.id);
-    }
-    @Get(':ticket')
-    @UseGuards(JwtDemandeurAuthGuard)
-    @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
-    @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
-    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
-    async getByTicket(@Param('ticket') ticket: string, @Req() req) {
-        return this.demandRequestsService.findByTicket(ticket, req.user.id);
-    }
-
-   
-    
-    
-    @Get('')
-    @UseGuards(JwtDemandeurAuthGuard)
-    @ApiOperation({ summary: 'Lister les demandes filtrées du demandeur' })
-    @ApiQuery({ name: 'status', required: false })
-    @ApiQuery({ name: 'serviceType', required: false })
-    @ApiQuery({ name: 'userId', required: false })
-    @ApiQuery({ name: 'fromDate', required: false, type: String })
-    @ApiQuery({ name: 'toDate', required: false, type: String })
-    @ApiQuery({ name: 'page', required: false, type: Number })
-    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @Get()
+    @ApiOperation({ summary: 'Lister les demandes filtrées' })
     @ApiResponse({ status: 200, description: 'Liste filtrée des demandes.' })
+    @ApiQuery({ type: GetDemandRequestsFilterDto })
+    @UseGuards(JwtAuthGuard)
     async getAllFiltered(
-        @Query(new ValidationPipe({ transform: true })) query: GetDemandRequestsFilterDto,
+        @Query() query: GetDemandRequestsFilterDto,
     ) {
-        const {
-            status,
-            serviceType,
-            userId,
-            fromDate,
-            toDate,
-            page = '1',
-            limit = '10',
-        } = query;
-
-        const pageNumber = parseInt(page, 10);
-        const pageSize = parseInt(limit, 10);
-
-        return this.demandRequestsService.getAllFiltered(
-            { status, serviceType, userId, fromDate, toDate },
-            pageNumber,
-            pageSize,
-        );
+        return this.demandRequestsService.getAllFiltered(query);
     }
-     @Get(':id')
-    @UseGuards(JwtAuthGuard)
-    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
-    @ApiOperation({ summary: 'Détails d\'une demande' })
-    @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
-    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
-    async getOne(@Param('id') id: string, @Req() req) {
-        return this.demandRequestsService.findOne(id, req.user);
-    }
-
-
-    @Get('services')
-    @ApiOperation({ summary: 'Lister les types de services disponibles' })
-    @ApiResponse({ status: 200, description: 'Liste des types de services.' })
-    async getSerrvicesPrices() {
-        return this.demandRequestsService.getServicesPrices();
-    }
-
- 
-
-    @Get('admin')
-    @UseGuards(JwtAuthGuard)
-    @ApiOperation({ summary: 'Lister les demandes filtrées (vue admin)' })
-    @ApiQuery({ name: 'status', required: false })
-    @ApiQuery({ name: 'serviceType', required: false })
-    @ApiQuery({ name: 'userId', required: false })
-    @ApiQuery({ name: 'fromDate', required: false, type: String })
-    @ApiQuery({ name: 'toDate', required: false, type: String })
-    @ApiQuery({ name: 'page', required: false, type: Number })
-    @ApiQuery({ name: 'limit', required: false, type: Number })
-    @ApiResponse({ status: 200, description: 'Liste filtrée des demandes.' })
-    async getAllFilteredAdmin(
-        @Query(new ValidationPipe({ transform: true })) query: GetDemandRequestsFilterDto,
-    ) {
-        const {
-            status,
-            serviceType,
-            userId,
-            fromDate,
-            toDate,
-            page = '1',
-            limit = '10',
-        } = query;
-
-        const pageNumber = parseInt(page, 10);
-        const pageSize = parseInt(limit, 10);
-
-        return this.demandRequestsService.getAllFiltered(
-            { status, serviceType, userId, fromDate, toDate },
-            pageNumber,
-            pageSize,
-        );
-    }
-
 
     @Get('/stats')
-    @UseGuards(JwtAuthGuard, UserRolesGuard)
-    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
-    @ApiOperation({ summary: 'Statistiques globales des demandes (personnel)' })
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Statistiques globales des demandes' })
     @ApiResponse({ status: 200, description: 'Statistiques globales des demandes.' })
     async getStats() {
         return this.demandRequestsService.getStats();
     }
+
+    @Get('me')
+    @UseGuards(JwtDemandeurAuthGuard)
+    async getMyRequests(
+        @Req() req: Request,
+        @Query() query: Omit<GetDemandRequestsFilterDto, 'contactPhoneNumber' | 'userId'>,
+    ) {
+        const user = req.user as User;
+        return this.demandRequestsService.getUserRequests(user.id, query);
+    }
+
 
     @Get('/stats/demandeur')
     @UseGuards(JwtDemandeurAuthGuard)
@@ -218,18 +118,39 @@ export class DemandRequestsController {
         return this.demandRequestsService.getStatsForUser(req.user.id);
     }
 
+    @Get('track/:ticket')
+    @UseGuards(JwtDemandeurAuthGuard)
+    @ApiOperation({ summary: 'Suivre une demande par son numéro de ticket' })
+    @ApiResponse({ status: 200, description: 'Détails de la demande.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
+    async trackByTicket(@Param('ticket') ticket: string, @Req() req) {
+        return this.demandRequestsService.trackByTicket(ticket, req.user.id);
+    }
 
-    @Get()
-    @UseGuards(JwtAuthGuard, UserRolesGuard)
-    @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
-    @ApiOperation({ summary: 'Liste paginée des demandes' })
-    @ApiQuery({ name: 'page', required: false, type: Number })
-    @ApiQuery({ name: 'limit', required: false, type: Number })
-    @ApiResponse({ status: 200, description: 'Liste paginée des demandes.' })
-    async getAll(@Query('page') page: string, @Query('limit') limit: string) {
-        const pageNumber = parseInt(page) || 1;
-        const pageSize = parseInt(limit) || 10;
-        return this.demandRequestsService.getAll(pageNumber, pageSize);
+    @Get('admin/:ticket')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
+    @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
+    async getByTicketAdmin(@Param('ticket') ticket: string, @Req() req) {
+        return this.demandRequestsService.findByTicket(ticket, req.user.id);
+    }
+
+    @Get('demande/:ticket')
+    @UseGuards(JwtDemandeurAuthGuard)
+    @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
+    @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
+    @ApiResponse({ status: 404, description: 'Demande non trouvée.' })
+    async getByTicket(@Param('ticket') ticket: string, @Req() req) {
+        return this.demandRequestsService.findByTicket(ticket, req.user.id);
+    }
+
+
+    @Get('services')
+    @ApiOperation({ summary: 'Lister les types de services disponibles' })
+    @ApiResponse({ status: 200, description: 'Liste des types de services.' })
+    async getSerrvicesPrices() {
+        return this.demandRequestsService.getServicesPrices();
     }
 
     @Put(':id/status')

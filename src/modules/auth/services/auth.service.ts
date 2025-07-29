@@ -11,10 +11,10 @@ import { UserType, UserStatus, User } from '@prisma/client';
 import { PrismaService } from 'src/database/services/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
-// import { OtpService } from 'src/otp/otp.service'; // ❌ Désactivé
+import { OtpService } from 'src/otp/otp.service'; 
 import { LoginDto } from '../dto/login.dto';
 import { LoginSuccessResponse /*, PreLoginResponse */ } from '../interfaces/auth.interface';
-// import { TwilioService } from 'src/twilio/services/twilio.service'; // ❌ Désactivé
+import { TwilioService } from 'src/twilio/services/twilio.service'; 
 import { RegisterClientDto } from '../dto/register-demandeur.dto';
 
 @Injectable()
@@ -22,8 +22,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jsonWebTokenService: JsonWebTokenService,
-    // private readonly otpService: OtpService, // ❌ Désactivé
-    // private readonly twilioService: TwilioService, // ❌ Désactivé
+    private readonly otpService: OtpService, 
+    private readonly twilioService: TwilioService, 
   ) { }
 
   async registerClient(registerClientDto: RegisterClientDto): Promise<Omit<User, 'password'>> {
@@ -66,27 +66,27 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Identifiants invalides');
+      throw new BadRequestException('Identifiants invalides');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Identifiants invalides');
+      throw new BadRequestException('Identifiants invalides');
     }
 
     if (user.status === UserStatus.INACTIVE) {
-      throw new UnauthorizedException('Votre compte est inactif. Veuillez contacter l\'administration.');
+      throw new BadRequestException('Votre compte est inactif. Veuillez contacter l\'administration.');
     }
 
     if (user.type === UserType.PERSONNEL && user.isPasswordChangeRequired) {
-      throw new ForbiddenException(
+      throw new BadRequestException(
         'Le changement de mot de passe initial est requis. Veuillez réinitialiser votre mot de passe.'
       );
     }
 
     // 🔒 OTP désactivé
     // const otpCode = await this.otpService.generate(user.id);
-    // const isSent = await this.twilioService.sendOtp({ phoneNumber: user.phoneNumber, otp: otpCode });
+    // const isSent = user.phoneNumber ? await this.twilioService.sendOtp({ phoneNumber: user.phoneNumber, otp: otpCode }) : false;
     // if (!isSent) {
     //   throw new Error('Envoi de l\'OTP impossible');
     // }
@@ -121,10 +121,10 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé.');
+      throw new BadRequestException('Utilisateur non trouvé.');
     }
     if (user.status === UserStatus.INACTIVE) {
-      throw new UnauthorizedException('Votre compte est inactif. Veuillez contacter l\'administration.');
+      throw new BadRequestException('Votre compte est inactif. Veuillez contacter l\'administration.');
     }
 
     // 🔒 OTP désactivé
@@ -158,7 +158,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé ou inactif');
+      throw new BadRequestException('Utilisateur non trouvé ou inactif');
     }
 
     const newAccessToken = await this.jsonWebTokenService.generateAccessToken(user.id, user.type, user.role);
@@ -172,7 +172,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé ou inactif');
+      throw new BadRequestException('Utilisateur non trouvé ou inactif');
     }
 
     const { password, ...restUser } = user;
@@ -196,14 +196,14 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé ou inactif');
+      throw new BadRequestException('Utilisateur non trouvé ou inactif');
     }
 
     // 2. Vérifie que le mot de passe actuel est correct
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
 
     if (!isCurrentPasswordValid) {
-      throw new UnauthorizedException('Mot de passe actuel invalide');
+      throw new BadRequestException('Mot de passe actuel invalide');
     }
 
     // 3. Hash le nouveau mot de passe
@@ -221,31 +221,31 @@ export class AuthService {
   }
 
   //  Met à jour le profil du demandeur (hors mot de passe, type, statut)
- async updateClientProfile(
-  userId: string,
-  userType: UserType,
-  updateData: Partial<Omit<User, 'password' | 'type' | 'status'>>
-): Promise<Omit<User, 'password'>> {
-  const user = await this.prisma.user.findUnique({
-    where: {
-      id: userId,
-      status: UserStatus.ACTIVE,
-      type: userType,
-    },
-  });
+  async updateClientProfile(
+    userId: string,
+    userType: UserType,
+    updateData: Partial<Omit<User, 'password' | 'type' | 'status'>>
+  ): Promise<Omit<User, 'password'>> {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+        status: UserStatus.ACTIVE,
+        type: userType,
+      },
+    });
 
-  if (!user) {
-    throw new UnauthorizedException('Utilisateur non trouvé ou inactif');
+    if (!user) {
+      throw new BadRequestException('Utilisateur non trouvé ou inactif');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: updateData, // Typescript empêche déjà les champs interdits ici
+    });
+
+    const { password, ...rest } = updatedUser;
+    return rest;
   }
-
-  const updatedUser = await this.prisma.user.update({
-    where: { id: user.id },
-    data: updateData, // Typescript empêche déjà les champs interdits ici
-  });
-
-  const { password, ...rest } = updatedUser;
-  return rest;
-}
 
 
 

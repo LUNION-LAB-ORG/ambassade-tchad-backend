@@ -50,7 +50,7 @@ export class GenerateDataService {
 
     static async generateImageName(name: string): Promise<string> {
 
-        return "image_"+name+(new Date().getTime())+Math.random()*1000;
+        return "image_" + name + (new Date().getTime()) + Math.random() * 1000;
 
     }
 
@@ -134,5 +134,135 @@ export class GenerateDataService {
 
         return R * c
     }
-    
+
+    /**
+   * Retourne le nombre de jours selon la période
+   */
+    static obtenirNombreJours(period: "day" | "week" | "twoWeeks" | "month" | "twoMonths" | "year"): number {
+        switch (period) {
+            case 'day':
+                return 24; // 24 heures pour le jour
+            case 'week':
+                return 7;
+            case 'twoWeeks':
+                return 14;
+            case 'month':
+                return 30;
+            case 'twoMonths':
+                return 60;
+            case 'year':
+                return 365;
+            default:
+                return 30;
+        }
+    }
+
+    /**
+     * Génère une série temporelle à partir de données groupées
+     * Retourne un tableau d'objets {date, value}
+     */
+    static genererSeries(
+        groupedData: Array<{ createdAt: Date; _count: number }>,
+        period: "day" | "week" | "twoWeeks" | "month" | "twoMonths" | "year" = 'month'
+    ): Array<{ date: string; value: number }> {
+        if (period === 'day') {
+            // Pour le jour : série de 24 heures (0h à 23h)
+            const series: Array<{ date: string; value: number }> = [];
+            const aujourdhui = new Date();
+            aujourdhui.setHours(0, 0, 0, 0); // 00h00 aujourd'hui
+
+            // Créer un objet pour compter par heure
+            const heuresCount: { [key: number]: number } = {};
+
+            groupedData.forEach(item => {
+                const createdDate = new Date(item.createdAt);
+                // Si c'est aujourd'hui
+                if (createdDate >= aujourdhui) {
+                    const heure = createdDate.getHours();
+                    heuresCount[heure] = (heuresCount[heure] || 0) + item._count;
+                }
+            });
+
+            // Générer la série pour chaque heure (0h à 23h)
+            for (let h = 0; h < 24; h++) {
+                const dateHeure = new Date(aujourdhui);
+                dateHeure.setHours(h, 0, 0, 0);
+
+                series.push({
+                    date: dateHeure.toISOString(),
+                    value: heuresCount[h] || 0
+                });
+            }
+
+            return series;
+        }
+
+        // Pour les autres périodes : logique par jours
+        const days = GenerateDataService.obtenirNombreJours(period);
+        const series: Array<{ date: string; value: number }> = [];
+        const today = new Date();
+
+        // Créer un objet pour compter par date
+        const datesCount: { [key: string]: number } = {};
+
+        groupedData.forEach(item => {
+            const createdDate = new Date(item.createdAt);
+            const daysDiff = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            if (daysDiff >= 0 && daysDiff < days) {
+                const dateKey = createdDate.toISOString().split('T')[0]; // YYYY-MM-DD
+                datesCount[dateKey] = (datesCount[dateKey] || 0) + item._count;
+            }
+        });
+
+        // Générer la série pour chaque jour de la période
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            date.setHours(0, 0, 0, 0); // Début de journée
+
+            const dateKey = date.toISOString().split('T')[0];
+
+            series.push({
+                date: date.toISOString(),
+                value: datesCount[dateKey] || 0
+            });
+        }
+
+        return series;
+    }
+
+    /**
+     * Retourne la date de début selon la période
+     * Pour 'day' : depuis 00h00 aujourd'hui
+     * Pour les autres : X jours en arrière
+     */
+    static obtenirDateDebut(period: "day" | "week" | "twoWeeks" | "month" | "twoMonths" | "year"): Date {
+        const date = new Date();
+
+        switch (period) {
+            case 'day':
+                // Depuis 00h00 aujourd'hui
+                date.setHours(0, 0, 0, 0);
+                return date;
+            case 'week':
+                date.setDate(date.getDate() - 7);
+                return date;
+            case 'twoWeeks':
+                date.setDate(date.getDate() - 14);
+                return date;
+            case 'month':
+                date.setDate(date.getDate() - 30);
+                return date;
+            case 'twoMonths':
+                date.setDate(date.getDate() - 60);
+                return date;
+            case 'year':
+                date.setDate(date.getDate() - 365);
+                return date;
+            default:
+                date.setDate(date.getDate() - 30);
+                return date;
+        }
+    }
 }

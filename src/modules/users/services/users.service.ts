@@ -10,6 +10,7 @@ import { QueryUserDto } from '../dto/query-user.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
 
 import { Request } from 'express';
+import { UserStatsResponse } from '../responses/user-stats.response';
 
 @Injectable()
 export class UsersService {
@@ -119,19 +120,7 @@ export class UsersService {
         skip: skip,
         take: take,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          phoneNumber: true,
-          type: true,
-          role: true,
-          status: true,
-          isPasswordChangeRequired: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        omit: { password: false },
       }),
     ]);
 
@@ -146,6 +135,69 @@ export class UsersService {
     };
   }
 
+  async stats(): Promise<UserStatsResponse> {
+    const dateDebut = GenerateDataService.obtenirDateDebut('month');
+
+    // Tous les utilisateurs
+    const [allUsers, allUsersGrouped] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.groupBy({
+        by: ['createdAt'],
+        _count: true,
+        where: { createdAt: { gte: dateDebut } }
+      })
+    ]);
+
+    // Utilisateurs actifs
+    const [activeUsers, activeUsersGrouped] = await Promise.all([
+      this.prisma.user.count({ where: { status: UserStatus.ACTIVE } }),
+      this.prisma.user.groupBy({
+        by: ['createdAt'],
+        _count: true,
+        where: {
+          status: UserStatus.ACTIVE,
+          createdAt: { gte: dateDebut }
+        }
+      })
+    ]);
+
+    // Utilisateurs inactifs
+    const [inactiveUsers, inactiveUsersGrouped] = await Promise.all([
+      this.prisma.user.count({ where: { status: UserStatus.INACTIVE } }),
+      this.prisma.user.groupBy({
+        by: ['createdAt'],
+        _count: true,
+        where: {
+          status: UserStatus.INACTIVE,
+          createdAt: { gte: dateDebut }
+        }
+      })
+    ]);
+
+    // Utilisateurs bannis
+    const [bannedUsers, bannedUsersGrouped] = await Promise.all([
+      this.prisma.user.count({ where: { status: UserStatus.DELETED } }),
+      this.prisma.user.groupBy({
+        by: ['createdAt'],
+        _count: true,
+        where: {
+          status: UserStatus.DELETED,
+          createdAt: { gte: dateDebut }
+        }
+      })
+    ]);
+
+    return {
+      allUsers,
+      allUsersSeries: GenerateDataService.genererSeries(allUsersGrouped, 'month'),
+      activeUsers,
+      activeUsersSeries: GenerateDataService.genererSeries(activeUsersGrouped, 'month'),
+      inactiveUsers,
+      inactiveUsersSeries: GenerateDataService.genererSeries(inactiveUsersGrouped, 'month'),
+      bannedUsers,
+      bannedUsersSeries: GenerateDataService.genererSeries(bannedUsersGrouped, 'month'),
+    };
+  }
   /**
    * Récupère le profil de l'utilisateur connecté.
    * @param userId L'ID de l'utilisateur.
@@ -265,8 +317,9 @@ export class UsersService {
 
     const userToDelete = await this.detail(id);
 
-    const deletedUser = await this.prisma.user.delete({
+    const deletedUser = await this.prisma.user.update({
       where: { id: userToDelete.id },
+      data: { status: UserStatus.DELETED, deletedAt: new Date() },
     });
 
     return deletedUser;

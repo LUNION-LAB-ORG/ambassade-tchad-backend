@@ -29,7 +29,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['https://ambassade-tchad-dashboard.vercel.app', 'http://localhost:3020', 'http://localhost:3001', 'http://localhost:3000'],
+    origin: ['https://ambassade-tchad-dashboard.vercel.app', 'http://localhost:3020', 'http://localhost:3001', 'http://localhost:3000', 'http://localhost:3002'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -58,8 +58,10 @@ async function bootstrap() {
   // Lancer le serveur
   const port = process.env.PORT ?? 8081;
   await app.listen(port);
-  
-    // 👇 Ajoute ceci pour afficher l’URL dans la console
+
+  // 👇 Ajoute ceci pour afficher l’URL dans la console
   console.log(`🚀 Application is running on: http://localhost:${port}`);
 }
+
+
 bootstrap();

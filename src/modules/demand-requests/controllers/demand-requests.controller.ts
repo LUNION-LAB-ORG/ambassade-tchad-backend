@@ -136,7 +136,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.findByTicket(ticket, req.user.id);
     }
 
-    @Get('demande/:ticket')
+    @Get('demandeur/:ticket')
     @UseGuards(JwtDemandeurAuthGuard)
     @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
     @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })

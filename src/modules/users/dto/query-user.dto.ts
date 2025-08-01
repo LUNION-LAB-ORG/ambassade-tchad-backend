@@ -70,7 +70,6 @@ export class QueryUserDto {
         maxLength: 100,
     })
     @IsOptional()
-    @IsEmail({}, { message: 'L\'email doit être une adresse email valide si fourni.' })
     @MaxLength(100, { message: 'L\'email ne doit pas dépasser 100 caractères.' })
     @Transform(({ value }) => value.trim().toLowerCase())
     email?: string;

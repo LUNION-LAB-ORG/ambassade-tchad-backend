@@ -78,12 +78,13 @@ export class UsersController {
     return this.usersService.create(req, createUserDto);
   }
 
-  @Get('stats')
+  @Get('stats/:type')
   @ApiOperation({ summary: 'Statistiques globales des utilisateurs' })
   @ApiResponse({ status: 200, type: UserStatsResponse, description: 'Statistiques globales des utilisateurs.' })
+
   @UseGuards(JwtAuthGuard)
-  async getStats() {
-    return this.usersService.stats();
+  async getStats(@Param('type') type: "personnel" | "demandeur") {
+    return this.usersService.stats(type);
   }
 
   @Get(':id/profile')
@@ -151,6 +152,28 @@ export class UsersController {
   ) {
     return this.usersService.update(req, updateUserDto);
   }
+
+  @Patch('update/:id/role')
+  @ApiOperation({ summary: 'Mettre à jour le rôle d\'un utilisateur personnel' })
+  @ApiOkResponse({
+    description: 'Rôle utilisateur mis à jour avec succès.',
+    schema: { type: 'object' },
+  })
+  @ApiBadRequestResponse({
+    description: 'Données de mise à jour invalides.',
+  })
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateUserDto })
+  @UserRoles(Role.ADMIN)
+  @UseGuards(JwtAuthGuard, UserRolesGuard)
+  async updateRole(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() updateUserDto: Pick<UpdateUserDto, 'role'>,
+  ) {
+    return this.usersService.updateRole(req, id, updateUserDto);
+  }
+
 
   @Patch('deactivate/:id')
   @ApiOperation({ summary: 'Désactiver un utilisateur par son ID (changement de statut en INACTIVE, nécessite un rôle ADMIN)' })

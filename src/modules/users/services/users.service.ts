@@ -135,27 +135,40 @@ export class UsersService {
     };
   }
 
-  async stats(): Promise<UserStatsResponse> {
+  async stats(type: "personnel" | "demandeur"): Promise<UserStatsResponse> {
     const dateDebut = GenerateDataService.obtenirDateDebut('month');
 
     // Tous les utilisateurs
     const [allUsers, allUsersGrouped] = await Promise.all([
-      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: {
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
+        },
+      }),
       this.prisma.user.groupBy({
         by: ['createdAt'],
         _count: true,
-        where: { createdAt: { gte: dateDebut } }
+        where: {
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
+          createdAt: { gte: dateDebut }
+        }
       })
     ]);
 
     // Utilisateurs actifs
     const [activeUsers, activeUsersGrouped] = await Promise.all([
-      this.prisma.user.count({ where: { status: UserStatus.ACTIVE } }),
+      this.prisma.user.count({
+        where: {
+          status: UserStatus.ACTIVE,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
+        },
+      }),
       this.prisma.user.groupBy({
         by: ['createdAt'],
         _count: true,
         where: {
           status: UserStatus.ACTIVE,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
           createdAt: { gte: dateDebut }
         }
       })
@@ -163,12 +176,18 @@ export class UsersService {
 
     // Utilisateurs inactifs
     const [inactiveUsers, inactiveUsersGrouped] = await Promise.all([
-      this.prisma.user.count({ where: { status: UserStatus.INACTIVE } }),
+      this.prisma.user.count({
+        where: {
+          status: UserStatus.INACTIVE,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
+        },
+      }),
       this.prisma.user.groupBy({
         by: ['createdAt'],
         _count: true,
         where: {
           status: UserStatus.INACTIVE,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
           createdAt: { gte: dateDebut }
         }
       })
@@ -176,12 +195,18 @@ export class UsersService {
 
     // Utilisateurs bannis
     const [bannedUsers, bannedUsersGrouped] = await Promise.all([
-      this.prisma.user.count({ where: { status: UserStatus.DELETED } }),
+      this.prisma.user.count({
+        where: {
+          status: UserStatus.DELETED,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
+        },
+      }),
       this.prisma.user.groupBy({
         by: ['createdAt'],
         _count: true,
         where: {
           status: UserStatus.DELETED,
+          type: type === "personnel" ? UserType.PERSONNEL : UserType.DEMANDEUR,
           createdAt: { gte: dateDebut }
         }
       })
@@ -227,8 +252,53 @@ export class UsersService {
   async update(req: Request, updateUserDto: UpdateUserDto) {
     const user = req.user as User;
 
+    const { email, phoneNumber, ...rest } = updateUserDto;
+    const data: UpdateUserDto = { ...rest };
+
+    if (email === user.email) {
+      data.email = email;
+    }
+
+    if (phoneNumber === user.phoneNumber) {
+      data.phoneNumber = phoneNumber;
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
+      data: data,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+        type: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        isPasswordChangeRequired: true,
+      },
+    });
+
+    return updatedUser;
+  }
+  /**
+   * Met à jour le rôle d'un utilisateur.
+   * @param req L'objet requête.
+   * @param updateUserDto Les données de mise à jour.
+   * @returns L'utilisateur mis à jour (sans le mot de passe).
+   */
+
+  async updateRole(req: Request, id: string, updateUserDto: UpdateUserDto) {
+    const actor = req.user as User;
+
+    if (actor.id === id) {
+      throw new BadRequestException('Vous ne pouvez pas changer le rôle de votre propre compte.');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: id },
       data: updateUserDto,
       select: {
         id: true,
@@ -262,18 +332,21 @@ export class UsersService {
     const userToDeactivate = await this.detail(id);
 
     if (userToDeactivate.status === UserStatus.INACTIVE) {
-      throw new BadRequestException('L\'utilisateur est déjà désactivé.');
+      throw new BadRequestException('L\'utilisateur est déjà vérouillé.');
     }
     if (actor.id === id) {
-      throw new BadRequestException('Vous ne pouvez pas désactiver votre propre compte.');
+      throw new BadRequestException('Vous ne pouvez pas vérouiller votre propre compte.');
     }
 
-    const deactivatedUser = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id: id },
       data: { status: UserStatus.INACTIVE },
     });
 
-    return deactivatedUser;
+    return {
+      success: true,
+      message: 'Utilisateur vérouillé avec succès.',
+    };
   }
 
   /**
@@ -290,15 +363,20 @@ export class UsersService {
     const userToActivate = await this.detail(id);
 
     if (userToActivate.status === UserStatus.ACTIVE) {
-      throw new BadRequestException('L\'utilisateur est déjà actif.');
+      throw new BadRequestException('L\'utilisateur est déjà dévérouillé.');
     }
-
-    const activatedUser = await this.prisma.user.update({
+    if (actor.id === id) {
+      throw new BadRequestException('Vous ne pouvez pas dévérouiller votre propre compte.');
+    }
+    await this.prisma.user.update({
       where: { id: id },
       data: { status: UserStatus.ACTIVE },
     });
 
-    return activatedUser;
+    return {
+      success: true,
+      message: 'Utilisateur dévérouillé avec succès.',
+    };
   }
 
   /**
@@ -317,11 +395,14 @@ export class UsersService {
 
     const userToDelete = await this.detail(id);
 
-    const deletedUser = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id: userToDelete.id },
       data: { status: UserStatus.DELETED, deletedAt: new Date() },
     });
 
-    return deletedUser;
+    return {
+      success: true,
+      message: 'Utilisateur supprimé avec succès.',
+    };
   }
 }

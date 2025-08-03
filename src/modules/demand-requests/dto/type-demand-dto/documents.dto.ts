@@ -14,7 +14,7 @@ export class CreateDocumentDto {
   @IsString()
   filePath: string;
 
-  @ApiProperty({ example: 153 }) // en KB
+  @ApiProperty({ example: 153 }) 
   @IsInt()
   fileSizeKB: number;
 

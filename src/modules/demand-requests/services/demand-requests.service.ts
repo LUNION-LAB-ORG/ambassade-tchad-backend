@@ -22,6 +22,7 @@ import {
 import { CreateDocumentDto } from '../dto/type-demand-dto/documents.dto';
 import { GetDemandRequestsFilterDto } from '../dto/get-demandRequests-filter.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { GenerateDataService } from 'src/common/services/generate-data.service';
 
 @Injectable()
 export class DemandRequestsService {
@@ -621,43 +622,33 @@ export class DemandRequestsService {
             fromDate,
             toDate,
             ticketNumber,
-            contactPhoneNumber,
             page = 1,
             limit = 10,
         } = query;
 
-        const filters: any = {
-            status,
-            serviceType,
-            userId,
-            ticketNumber: ticketNumber
-                ? { contains: ticketNumber, mode: 'insensitive' }
-                : undefined,
-            contactPhoneNumber: contactPhoneNumber
-                ? { contains: contactPhoneNumber, mode: 'insensitive' }
-                : undefined,
-            submissionDate: {
+        const where: Prisma.RequestWhereInput = {}
+        if (status) {
+            where.status = status
+        }
+        if (serviceType) {
+            where.serviceType = serviceType
+        }
+        if (userId) {
+            where.userId = userId
+        }
+        if (ticketNumber) {
+            where.ticketNumber = { contains: ticketNumber, mode: 'insensitive' }
+        }
+        if (fromDate || toDate) {
+            where.submissionDate = {
                 gte: fromDate ? new Date(fromDate) : undefined,
                 lte: toDate ? new Date(toDate) : undefined,
-            },
-        };
-
-        Object.keys(filters).forEach((key) => {
-            const val = filters[key];
-            if (
-                val === undefined ||
-                (typeof val === 'object' &&
-                    val.gte === undefined &&
-                    val.lte === undefined)
-            ) {
-                delete filters[key];
             }
-        });
-
+        }
         const [total, data] = await Promise.all([
-            this.prisma.request.count({ where: filters }),
+            this.prisma.request.count({ where }),
             this.prisma.request.findMany({
-                where: filters,
+                where,
                 orderBy: { submissionDate: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
@@ -763,6 +754,8 @@ export class DemandRequestsService {
     }
 
     async getStats() {
+        const dateDebut = GenerateDataService.obtenirDateDebut('month');
+
         const [total, byStatus, byServiceType] = await Promise.all([
             this.prisma.request.count(),
             this.prisma.request.groupBy({ by: ['status'], _count: true }),
@@ -780,6 +773,7 @@ export class DemandRequestsService {
 
     // Statistiques pour le demandeur
     async getStatsForUser(userId: string) {
+        const dateDebut = GenerateDataService.obtenirDateDebut('month');
         const userExists = await this.prisma.user.findUnique({
             where: { id: userId },
             select: { id: true },
@@ -790,15 +784,15 @@ export class DemandRequestsService {
         }
 
         const [total, byStatus, byServiceType] = await Promise.all([
-            this.prisma.request.count({ where: { userId } }),
+            this.prisma.request.count({ where: { userId, submissionDate: { gte: dateDebut } } }),
             this.prisma.request.groupBy({
                 by: ['status'],
-                where: { userId },
+                where: { userId, submissionDate: { gte: dateDebut } },
                 _count: true,
             }),
             this.prisma.request.groupBy({
                 by: ['serviceType'],
-                where: { userId },
+                where: { userId, submissionDate: { gte: dateDebut } },
                 _count: true,
             }),
         ]);

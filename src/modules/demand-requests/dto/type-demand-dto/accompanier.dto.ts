@@ -1,4 +1,3 @@
-// src/modules/requests/dto/create-request.dto.ts
 import {
     IsOptional,
     IsDateString,
@@ -9,7 +8,6 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 
-// Dto si y'a un accompagnateur
 export class AccompanierDto {
   @ApiProperty({
     description: "Prénom de l'accompagnant",

@@ -17,7 +17,6 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AccompanierDto } from './accompanier.dto';
 
-// DTO de la demande d'un laisser-passer
 export class LaissezPasserRequestDetailsDto {
       @ApiProperty({
     description: 'Type de service (fixé à LAISSER PASSER)',

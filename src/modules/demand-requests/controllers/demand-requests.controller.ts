@@ -2,7 +2,6 @@ import {
     Controller,
     Post,
     Get,
-    Put,
     Param,
     Body,
     Req,
@@ -10,6 +9,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFiles,
+    Patch,
 } from '@nestjs/common';
 import {
     ApiBody,
@@ -77,6 +77,28 @@ export class DemandRequestsController {
         const user = req.user as User;
 
         return this.demandRequestsService.create(dto, user.id, files);
+    }
+
+
+    @Post("/admin/:userId")
+    @ApiOperation({ summary: 'Créer une nouvelle demande avec fichiers PDF' })
+    @ApiResponse({ status: 201, description: 'Demande créée avec succès.' })
+    @ApiResponse({ status: 400, description: 'Requête invalide.' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'Formulaire de demande + fichiers PDF',
+        type: CreateDemandRequestDto,
+    })
+    @UseInterceptors(
+        AnyFilesInterceptor(GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
+    )
+    @UseGuards(JwtAuthGuard)
+    async createAdmin(
+        @Body() dto: CreateDemandRequestDto,
+        @UploadedFiles() files: Express.Multer.File[],
+        @Param('userId') userId: string,
+    ) {
+        return this.demandRequestsService.create(dto, userId, files);
     }
 
     @Get()
@@ -153,9 +175,9 @@ export class DemandRequestsController {
         return this.demandRequestsService.getServicesPrices();
     }
 
-    @Put(':id/status')
-    @UseGuards(JwtAuthGuard, UserRolesGuard)
+    @Patch(':id/status')
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
+    @UseGuards(JwtAuthGuard, UserRolesGuard)
     @ApiOperation({ summary: 'Mettre à jour le statut d\'une demande' })
     @ApiResponse({ status: 200, description: 'Statut mis à jour avec succès.' })
     @ApiResponse({ status: 400, description: 'Mise à jour invalide.' })

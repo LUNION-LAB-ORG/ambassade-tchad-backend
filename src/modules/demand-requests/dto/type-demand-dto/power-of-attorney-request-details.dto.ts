@@ -1,4 +1,3 @@
-// src/modules/requests/dto/create-request.dto.ts
 import {
     IsEnum,
     IsOptional,
@@ -11,7 +10,7 @@ import {
     JustificationDocumentType,
 } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-// DTO demande de procuration
+
 export class PowerOfAttorneyRequestDetailsDto {
        @ApiProperty({
     description: 'Type de service (fixé à DEMANDE PROCURATION)',

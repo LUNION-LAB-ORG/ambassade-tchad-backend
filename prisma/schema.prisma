@@ -29,6 +29,121 @@ enum UserStatus {
   DELETED
 }
 
+// Enum pour les types de services/demandes offerts par la mission diplomatique
+enum ServiceType {
+  VISA
+  BIRTH_ACT_APPLICATION // Demande d'acte de naissance
+  CONSULAR_CARD // Demande de carte consulaire
+  LAISSEZ_PASSER // Demande de laissez-passer
+  MARRIAGE_CAPACITY_ACT // Demande d'acte de capacité de mariage
+  DEATH_ACT_APPLICATION // Demande d'acte de décès
+  POWER_OF_ATTORNEY // Demande de procuration
+  NATIONALITY_CERTIFICATE // Demande de certificat de nationalité
+}
+
+// Enum pour les statuts de la demande (Workflow générique)
+enum RequestStatus {
+  NEW // Nouvelle demande soumise
+  IN_REVIEW_DOCS // En cours de vérification des documents (par l'agent)
+  PENDING_ADDITIONAL_INFO // En attente d'informations ou de documents complémentaires du demandeur
+  APPROVED_BY_AGENT // Approuvé par l'agent (prêt pour le chef de service)
+  APPROVED_BY_CHEF // Approuvé par le chef de service (prêt pour le consul/délivrance)
+  APPROVED_BY_CONSUL // Approuvé par le consul (décision finale d'approbation)
+  REJECTED // Demande rejetée
+  READY_FOR_PICKUP // Document prêt à être retiré
+  DELIVERED // Document délivré
+  ARCHIVED // Demande archivée (après délivrance ou rejet)
+  EXPIRED // Pour les visas expirés ou autres services à durée limitée
+  RENEWAL_REQUESTED // Demande de renouvellement soumise (si applicable)
+}
+
+// Enum pour les méthodes de paiement
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CREDIT_CARD
+  OTHER
+}
+
+// Enum pour le type de passeport
+enum PassportType {
+  ORDINARY // ordinaire
+  SERVICE
+  DIPLOMATIC
+}
+
+// Enum pour le type de visa
+enum VisaType {
+  SHORT_STAY
+  LONG_STAY
+}
+
+// Enum pour le genre
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// Enum pour la situation familiale
+enum MaritalStatus {
+  SINGLE // celibataire
+  MARRIED
+  DIVORCED
+  WIDOWED // veuf/ veuve
+}
+
+enum BirthActRequestType {
+  NEWBORN // nouveau-né
+  RENEWAL // renouvellé
+}
+
+enum JustificationDocumentType {
+  PASSPORT
+  NATIONAL_ID_CARD // CNI
+}
+
+enum AccompanyingDocumentType {
+  OLD_PASSPORT
+  CONSULAR_CARD
+  OTHER
+}
+
+// Enum pour le lien de parenté avec le parent du pays d'origine (Tchad)
+enum OriginCountryParentRelationshipType {
+  FATHER
+  MOTHER
+}
+
+// Catégorie des dépenses
+enum ExpenseCategory {
+  SALARIES // Salaires
+  GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
+  RENT // Loyers
+  INTERNET_COMM // Canal et Internet
+  UTILITIES // CIE et SODECI (Charges)
+  OTHER // Autre
+}
+
+// Type de notification (catégorie)
+enum NotificationType {
+  SYSTEM // Notifications générées par le système (ex: compte activé, statut de demande)
+  PROMOTION // Notifications marketing/promotionnelles
+  REQUEST_UPDATE // Mises à jour du statut des demandes consulaires
+  ACCOUNT_UPDATE // Mises à jour du compte utilisateur (ex: mot de passe changé)
+}
+
+// Cible de la notification (qui doit la recevoir)
+enum NotificationTarget {
+  INDIVIDUAL // Pour un utilisateur spécifique
+  ALL_CLIENTS // Pour tous les utilisateurs de type DEMANDEUR
+  ALL_PERSONNEL // Pour tous les utilisateurs de type PERSONNEL
+  ROLE_ADMIN // Pour tous les utilisateurs ayant le rôle ADMIN
+  ROLE_AGENT // Pour tous les utilisateurs ayant le rôle AGENT
+  ROLE_CHEF_SERVICE // Pour tous les utilisateurs ayant le rôle CHEF_SERVICE
+  ROLE_CONSUL // Pour tous les utilisateurs ayant le rôle CONSUL
+}
+
 model User {
   id          String  @id @default(uuid())
   email       String  @unique
@@ -81,34 +196,6 @@ model OtpToken {
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   counter Int?
   expire  DateTime @db.Timestamp(6)
-}
-
-// Enum pour les types de services/demandes offerts par la mission diplomatique
-enum ServiceType {
-  VISA
-  BIRTH_ACT_APPLICATION // Demande d'acte de naissance
-  CONSULAR_CARD // Demande de carte consulaire
-  LAISSEZ_PASSER // Demande de laissez-passer
-  MARRIAGE_CAPACITY_ACT // Demande d'acte de capacité de mariage
-  DEATH_ACT_APPLICATION // Demande d'acte de décès
-  POWER_OF_ATTORNEY // Demande de procuration
-  NATIONALITY_CERTIFICATE // Demande de certificat de nationalité
-}
-
-// Enum pour les statuts de la demande (Workflow générique)
-enum RequestStatus {
-  NEW // Nouvelle demande soumise
-  IN_REVIEW_DOCS // En cours de vérification des documents (par l'agent)
-  PENDING_ADDITIONAL_INFO // En attente d'informations ou de documents complémentaires du demandeur
-  APPROVED_BY_AGENT // Approuvé par l'agent (prêt pour le chef de service)
-  APPROVED_BY_CHEF // Approuvé par le chef de service (prêt pour le consul/délivrance)
-  APPROVED_BY_CONSUL // Approuvé par le consul (décision finale d'approbation)
-  REJECTED // Demande rejetée
-  READY_FOR_PICKUP // Document prêt à être retiré
-  DELIVERED // Document délivré
-  ARCHIVED // Demande archivée (après délivrance ou rejet)
-  EXPIRED // Pour les visas expirés ou autres services à durée limitée
-  RENEWAL_REQUESTED // Demande de renouvellement soumise (si applicable)
 }
 
 model Request {
@@ -223,15 +310,6 @@ model RequestStatusHistory {
   @@index([changedAt])
 }
 
-// Enum pour les méthodes de paiement
-enum PaymentMethod {
-  CASH
-  MOBILE_MONEY
-  BANK_TRANSFER
-  CREDIT_CARD
-  OTHER
-}
-
 // Model pour les paiements effectués pour les demandes
 model Payment {
   id String @id @default(uuid())
@@ -255,33 +333,6 @@ model Payment {
   @@index([paymentDate])
   @@index([method])
   @@index([recordedById])
-}
-
-// Enum pour le type de passeport
-enum PassportType {
-  ORDINARY // ordinaire
-  SERVICE
-  DIPLOMATIC
-}
-
-// Enum pour le type de visa
-enum VisaType {
-  SHORT_STAY
-  LONG_STAY
-}
-
-// Enum pour le genre
-enum Gender {
-  MALE
-  FEMALE
-}
-
-// Enum pour la situation familiale
-enum MaritalStatus {
-  SINGLE // celibataire
-  MARRIED
-  DIVORCED
-  WIDOWED // veuf/ veuve
 }
 
 model VisaRequestDetails {
@@ -321,11 +372,6 @@ model VisaRequestDetails {
   @@index([personNationality])
 }
 
-enum BirthActRequestType {
-  NEWBORN // nouveau-né
-  RENEWAL // renouvellé
-}
-
 model BirthActRequestDetails {
   id String @id @default(uuid())
 
@@ -349,11 +395,6 @@ model BirthActRequestDetails {
 
   @@index([personFirstName, personLastName])
   @@index([personBirthDate])
-}
-
-enum JustificationDocumentType {
-  PASSPORT
-  NATIONAL_ID_CARD // CNI
 }
 
 model ConsularCardRequestDetails {
@@ -384,12 +425,6 @@ model ConsularCardRequestDetails {
 
   @@index([personFirstName, personLastName])
   @@index([personNationality])
-}
-
-enum AccompanyingDocumentType {
-  OLD_PASSPORT
-  CONSULAR_CARD
-  OTHER
 }
 
 model LaissezPasserRequestDetails {
@@ -522,12 +557,6 @@ model PowerOfAttorneyRequestDetails {
   @@index([principalFirstName, principalLastName])
 }
 
-// Enum pour le lien de parenté avec le parent du pays d'origine (Tchad)
-enum OriginCountryParentRelationshipType {
-  FATHER
-  MOTHER
-}
-
 model NationalityCertificateRequestDetails {
   id String @id @default(uuid())
 
@@ -613,16 +642,6 @@ model Video {
   @@index([createdAt])
 }
 
-// Catégorie des dépenses
-enum ExpenseCategory {
-  SALARIES // Salaires
-  GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
-  RENT // Loyers
-  INTERNET_COMM // Canal et Internet
-  UTILITIES // CIE et SODECI (Charges)
-  OTHER // Autre
-}
-
 // Dépenses
 model Expense {
   id String @id @default(uuid())
@@ -684,25 +703,6 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@index([key])
-}
-
-// Type de notification (catégorie)
-enum NotificationType {
-  SYSTEM // Notifications générées par le système (ex: compte activé, statut de demande)
-  PROMOTION // Notifications marketing/promotionnelles
-  REQUEST_UPDATE // Mises à jour du statut des demandes consulaires
-  ACCOUNT_UPDATE // Mises à jour du compte utilisateur (ex: mot de passe changé)
-}
-
-// Cible de la notification (qui doit la recevoir)
-enum NotificationTarget {
-  INDIVIDUAL // Pour un utilisateur spécifique
-  ALL_CLIENTS // Pour tous les utilisateurs de type DEMANDEUR
-  ALL_PERSONNEL // Pour tous les utilisateurs de type PERSONNEL
-  ROLE_ADMIN // Pour tous les utilisateurs ayant le rôle ADMIN
-  ROLE_AGENT // Pour tous les utilisateurs ayant le rôle AGENT
-  ROLE_CHEF_SERVICE // Pour tous les utilisateurs ayant le rôle CHEF_SERVICE
-  ROLE_CONSUL // Pour tous les utilisateurs ayant le rôle CONSUL
 }
 
 model NotificationSetting {

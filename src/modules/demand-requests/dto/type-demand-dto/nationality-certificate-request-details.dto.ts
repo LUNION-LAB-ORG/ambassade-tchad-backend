@@ -11,7 +11,6 @@ import {
 } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
-// DTO de la demande du certificat de nationalité
 export class NationalityCertificateRequestDetailsDto {
      @ApiProperty({
     description: 'Type de service (fixé à CERTIFICAT DE NATIONALITE)',

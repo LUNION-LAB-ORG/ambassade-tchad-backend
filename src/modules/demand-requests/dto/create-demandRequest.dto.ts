@@ -1,15 +1,12 @@
-// src/modules/requests/dto/create-request.dto.ts
 import {
-    IsEnum,
-    IsOptional,
-    ValidateNested,
-    IsString,
-    IsNotEmpty,
-    IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  IsArray,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
 import {
-    ServiceType,
+  ServiceType,
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { VisaRequestDetailsDto } from './type-demand-dto/visa-request-details.dto';

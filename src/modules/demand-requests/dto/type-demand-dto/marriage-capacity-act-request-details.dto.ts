@@ -10,7 +10,6 @@ import {
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-// DTO pour une demande capacité de mariage
 export class MarriageCapacityActRequestDetailsDto {
       @ApiProperty({
     description: 'Type de service (fixé à CERTIFICATION DE CAPACITE DE MARIAGE)',
@@ -19,7 +18,6 @@ export class MarriageCapacityActRequestDetailsDto {
   })
   readonly serviceType?: "MARRIAGE_CAPACITY_ACT" = "MARRIAGE_CAPACITY_ACT";
 
-  // Époux
   @ApiProperty({ description: 'Prénom de l’époux', example: 'Jean' })
   @IsString()
   @MaxLength(255)
@@ -55,7 +53,6 @@ export class MarriageCapacityActRequestDetailsDto {
   @MaxLength(255)
   husbandDomicile?: string;
 
-  // Épouse
   @ApiProperty({ description: 'Prénom de l’épouse', example: 'Sophie' })
   @IsString()
   @MaxLength(255)

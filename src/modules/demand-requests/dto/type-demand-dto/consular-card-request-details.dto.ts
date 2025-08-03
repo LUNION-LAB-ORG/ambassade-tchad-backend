@@ -1,33 +1,19 @@
-// src/modules/requests/dto/create-request.dto.ts
 import {
     IsEnum,
     IsOptional,
-    ValidateNested,
     IsDateString,
     IsString,
-    IsNumber,
-    IsInt,
-    IsArray,
-    ArrayMinSize,
     IsNotEmpty,
     MaxLength,
-    IsBoolean,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
 import {
     ServiceType,
-    Gender,
-    MaritalStatus,
-    PassportType,
-    VisaType,
-    BirthActRequestType,
     JustificationDocumentType,
     OriginCountryParentRelationshipType,
 } from '@prisma/client';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 
-// DTO pour la demande de carte consulaire
 export class ConsularCardRequestDetailsDto {
     @ApiProperty({
     description: 'Type de service (fixé à CARTE CONSULAIRE)',

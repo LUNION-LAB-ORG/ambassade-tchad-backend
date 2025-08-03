@@ -9,7 +9,6 @@ import {
 } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
-// DTO demande un acte de décès
 export class DeathActRequestDetailsDto {
        @ApiProperty({
     description: 'Type de service (fixé à CERTIFICATION DE DECES)',

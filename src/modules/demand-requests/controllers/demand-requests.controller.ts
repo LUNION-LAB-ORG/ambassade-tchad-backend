@@ -9,7 +9,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFiles,
-    Patch,
+    Patch
 } from '@nestjs/common';
 import {
     ApiBody,
@@ -109,6 +109,7 @@ export class DemandRequestsController {
     async getAllFiltered(
         @Query() query: GetDemandRequestsFilterDto,
     ) {
+        console.log('Query DTO types:', typeof query.limit, typeof query.page, query);
         return this.demandRequestsService.getAllFiltered(query);
     }
 
@@ -158,7 +159,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.findByTicket(ticket, req.user.id);
     }
 
-    @Get('/demande/:ticket')
+    @Get('demandeur/:ticket')
     @UseGuards(JwtDemandeurAuthGuard)
     @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
     @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })

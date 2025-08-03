@@ -46,7 +46,7 @@ export class CreateEventsDto {
   @ApiProperty({ type: 'string', format: 'binary', isArray: true })
   @IsArray({ message: 'Les images doivent être un tableau de chaînes de caractères.' })
   @IsOptional()
-  imageUrl: string[];
+  imageUrl?: string[];
 
   @ApiProperty({
     description: "Indique si l'événement est publié",
@@ -55,6 +55,13 @@ export class CreateEventsDto {
   })
   @IsBoolean({ message: 'Le champ "published" doit être un booléen.' })
   @IsOptional()
+  @Transform(({ value }) => {
+        // Convertir automatiquement les chaînes en booléens
+        if (typeof value === 'string') {
+            return value === 'true';
+        }
+        return value;
+    })
   published?: boolean;
 
   @ApiProperty({

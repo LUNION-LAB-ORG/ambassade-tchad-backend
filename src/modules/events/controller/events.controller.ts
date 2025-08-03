@@ -11,6 +11,8 @@ import {
   Put,
   UploadedFiles,
   UseInterceptors,
+  Req,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { EventsService } from '../service/events.service';
@@ -18,7 +20,7 @@ import { CreateEventsDto } from '../dto/create-events.dto';
 import { UpdateEventsDto } from '../dto/update-events.dto';
 import { UserRolesGuard } from 'src/modules/users/guards/user-roles.guard';
 import { UserRoles } from 'src/modules/users/decorators/user-roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import {
   ApiResponse,
   ApiTags,
@@ -34,46 +36,33 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 @ApiTags('Événements')
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(private readonly eventsService: EventsService) { }
 
-  @Post()
-  @UseInterceptors(
-    FilesInterceptor(
-      'images',
-      10,
-      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
-    )
+@Post()
+@UseInterceptors(
+  FilesInterceptor(
+    'images',
+    10,
+    GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
   )
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: CreateEventsDto })
-  @ApiOperation({ summary: 'Créer un nouvel événement avec images compressées' })
-  @ApiResponse({ status: 201, description: 'Événement créé avec succès.' })
-  @ApiResponse({ status: 400, description: 'Requête invalide.' })
-  @ApiResponse({ status: 401, description: 'Vous n\'avez pas les droits' })
-  async create(
-    @Body() dto: CreateEventsDto,
-    @UploadedFiles() files: Express.Multer.File[],
-    @Request() req
-  ) {
-    const fileMap: Record<string, string> = {};
-    files.forEach((file, i) => {
-      fileMap[`image_${i}`] = file.path;
-    });
+)
+@UseGuards(JwtAuthGuard, UserRolesGuard)
+@UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+@ApiConsumes('multipart/form-data')
+@ApiBody({ type: CreateEventsDto })
+@ApiOperation({ summary: 'Créer un nouvel événement avec images compressées' })
+@ApiResponse({ status: 201, description: 'Événement créé avec succès.' })
+@ApiResponse({ status: 400, description: 'Requête invalide.' })
+@ApiResponse({ status: 401, description: 'Non autorisé' })
+async create(
+  @Body() dto: CreateEventsDto,
+  @UploadedFiles() files: Express.Multer.File[] = [], // Valeur par défaut tableau vide
+  @Request() req
+) {
+  return this.eventsService.create(dto, req.user.id, files);
+}
 
-    const compressedPaths = await GenerateConfigService.compressImages(
-      fileMap,
-      './uploads/photos',
-      { quality: 75, width: 1280, height: 720, fit: 'inside' },
-      true
-    );
-
-    dto.imageUrl = Object.values(compressedPaths);
-    return this.eventsService.create(dto, req.user.id);
-  }
-
-  @Get('')
+  @Get()
   @ApiOperation({ summary: 'Lister les événements avec filtres' })
   @ApiQuery({ name: 'title', required: false, description: 'Recherche par titre' })
   @ApiQuery({ name: 'authorId', required: false, description: 'Filtrer par auteur' })
@@ -104,7 +93,7 @@ export class EventsController {
     return this.eventsService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
   @ApiOperation({ summary: 'Mettre à jour un événement' })
@@ -114,9 +103,10 @@ export class EventsController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateEventsDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @Request() req,
   ) {
-    const updatedEvent = await this.eventsService.update(id, dto, req.user.id);
+    const updatedEvent = await this.eventsService.update(id, dto, req.user.id, files);
     return {
       message: 'Événement mis à jour avec succès.',
       data: updatedEvent,

@@ -30,6 +30,7 @@ export class GenerateConfigService {
         return imageConfig;
     }
 
+   
     static generateConfigMultipleImageUpload(destination: string, name?: string) {
         return {
             storage: diskStorage({

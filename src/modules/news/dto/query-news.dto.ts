@@ -1,8 +1,11 @@
-import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsBoolean } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, Min, Max } from 'class-validator';
 
 export class QueryNewsDto {
   @IsOptional()
-  @IsString()  
+  @IsString()
   title?: string;
 
   @IsOptional()
@@ -19,7 +22,7 @@ export class QueryNewsDto {
 
   @IsOptional()
   @IsDateString()
-  eventDate:string;
+  eventDate: string;
 
   @IsOptional()
   @IsDateString()
@@ -29,11 +32,28 @@ export class QueryNewsDto {
   @IsDateString()
   toDate?: string;
 
+  @ApiProperty({
+    description: "Numéro de la page à récupérer",
+    example: 1,
+    required: false,
+    default: 1,
+  })
   @IsOptional()
-  @IsNumberString()
-  page?: number;
+  @Type(() => Number)
+  @IsInt({ message: 'Le numéro de page doit être un entier.' })
+  @Min(1, { message: 'Le numéro de page doit être au moins 1.' })
+  page?: number = 1;
 
+  @ApiProperty({
+    description: "Nombre d'éléments par page",
+    example: 10,
+    required: false,
+    default: 10,
+  })
   @IsOptional()
-  @IsNumberString()
-  limit?: number;
+  @Type(() => Number)
+  @IsInt({ message: 'Le nombre d\'éléments par page doit être un entier.' })
+  @Min(1, { message: 'Le nombre d\'éléments par page doit être au moins 1.' })
+  @Max(100, { message: 'Le nombre d\'éléments par page ne peut pas dépasser 100.' })
+  limit?: number = 10;
 }

@@ -900,6 +900,13 @@ export class DemandRequestsService {
     }
 
     async findByTicket(ticket: string, userId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            throw new NotFoundException('Utilisateur non trouvé.');
+        }
+        if (user.type !== UserType.PERSONNEL && user.id !== userId) {
+            throw new ForbiddenException('Accès refusé.');
+        }
         const request = await this.prisma.request.findUnique({
             where: { ticketNumber: ticket },
             include: {
@@ -918,9 +925,6 @@ export class DemandRequestsService {
         });
         if (!request) {
             throw new NotFoundException('Demande non trouvée.');
-        }
-        if (request.userId !== userId) {
-            throw new ForbiddenException('Accès refusé à cette demande.');
         }
         return request;
     }

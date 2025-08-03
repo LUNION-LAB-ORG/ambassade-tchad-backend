@@ -140,7 +140,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.getStatsForUser(req.user.id);
     }
 
-    @Get('track/:ticket')
+    @Get('/track/:ticket')
     @UseGuards(JwtDemandeurAuthGuard)
     @ApiOperation({ summary: 'Suivre une demande par son numéro de ticket' })
     @ApiResponse({ status: 200, description: 'Détails de la demande.' })
@@ -149,7 +149,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.trackByTicket(ticket, req.user.id);
     }
 
-    @Get('admin/:ticket')
+    @Get('/admin/:ticket')
     @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
     @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
@@ -158,7 +158,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.findByTicket(ticket, req.user.id);
     }
 
-    @Get('demande/:ticket')
+    @Get('/demande/:ticket')
     @UseGuards(JwtDemandeurAuthGuard)
     @ApiOperation({ summary: 'Détails d\'une demande par ticket' })
     @ApiResponse({ status: 200, description: 'Détails d\'une demande.' })
@@ -168,7 +168,7 @@ export class DemandRequestsController {
     }
 
 
-    @Get('services')
+    @Get('/services')
     @ApiOperation({ summary: 'Lister les types de services disponibles' })
     @ApiResponse({ status: 200, description: 'Liste des types de services.' })
     async getSerrvicesPrices() {

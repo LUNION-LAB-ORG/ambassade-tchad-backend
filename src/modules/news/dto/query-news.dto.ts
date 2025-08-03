@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString, IsBoolean, IsNumber } from 'class-validator';
 
 export class QueryNewsDto {
   @IsOptional()
@@ -30,10 +31,13 @@ export class QueryNewsDto {
   toDate?: string;
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   page?: number;
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   limit?: number;
+  
 }

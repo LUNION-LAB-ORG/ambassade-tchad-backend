@@ -56,7 +56,7 @@ model User {
 
   // Relations pour le CMS (principalement pour le PERSONNEL)
   news                News[]               @relation("AuthorNews")
-  events              Event[]              @relation("AuthorEvent")
+  events              Evenement[]              @relation("AuthorEvent")
   expenses            Expense[]            @relation("ExpenseRecorder")
   services            Service[]            @relation("ServiceUpdater")
   settings            Setting[]            @relation("SettingUpdater")
@@ -575,7 +575,7 @@ model News {
 }
 
 // Evénements
-model Event {
+model Evenement {
   id          String   @id @default(uuid())
   title       String
   description String   @db.Text

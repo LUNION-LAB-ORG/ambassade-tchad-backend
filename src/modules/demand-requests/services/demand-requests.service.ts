@@ -854,7 +854,9 @@ export class DemandRequestsService {
             where.ticketNumber = query.ticketNumber;
         }
 
-        const { page = 1, limit = 10 } = query;
+        const page = Number(query.page ?? 1);
+        const limit = Number(query.limit ?? 10);
+
 
         const [total, data] = await Promise.all([
             this.prisma.request.count({

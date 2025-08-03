@@ -1,5 +1,6 @@
 import { RequestStatus, ServiceType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsOptional, IsString, IsDateString, IsNumberString, IsNumber } from 'class-validator';
 
 export class QueryPhotoDto {
   @IsOptional()
@@ -19,10 +20,12 @@ export class QueryPhotoDto {
   toDate?: string;
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   page?: number;
 
   @IsOptional()
-  @IsNumberString()
+  @Type(() => Number)
+  @IsNumber()
   limit?: number;
 }

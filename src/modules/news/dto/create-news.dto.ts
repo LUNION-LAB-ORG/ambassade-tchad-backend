@@ -11,8 +11,8 @@ export class CreateNewsDto {
         required: true,
         maxLength: 255,
     })
-    @IsString({message: 'Le titre doit être une chaîne de caractères.' })
-    @MaxLength(255, {message: 'Le titre ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: 'Le titre doit être une chaîne de caractères.' })
+    @MaxLength(255, { message: 'Le titre ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le titre est obligatoire.' })
     @Transform(({ value }) => value.trim())
     title: string;
@@ -25,11 +25,11 @@ export class CreateNewsDto {
     @IsNotEmpty({ message: 'Le contenu est obligatoire.' })
     @MaxLength(5000, { message: 'Le contenu ne doit pas dépasser 5000 caractères.' })
     @Transform(({ value }) => value.trim())
-    @IsString({message: 'Le contenu doit être une chaîne de caractères.'})
+    @IsString({ message: 'Le contenu doit être une chaîne de caractères.' })
     content: string;
 
 
-   @ApiProperty({ type: 'string', format: 'binary', isArray: true })
+    @ApiProperty({ type: 'string', format: 'binary', isArray: true })
     @IsArray()
     @IsOptional()
     imageUrls: string[];
@@ -39,9 +39,15 @@ export class CreateNewsDto {
         example: true,
         required: false,
     })
-
     @IsBoolean()
     @IsOptional()
+    @Transform(({ value }) => {
+        // Convertir automatiquement les chaînes en booléens
+        if (typeof value === 'string') {
+            return value === 'true';
+        }
+        return value;
+    })
     published?: boolean;
 
 }

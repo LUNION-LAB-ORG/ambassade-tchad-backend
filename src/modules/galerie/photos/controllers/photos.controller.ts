@@ -75,7 +75,7 @@ export class PhotosController {
     return this.photosService.create(dto);
   }
 
-  @Get('')
+  @Get()
   @ApiOperation({ summary: 'Lister les photos avec filtres' })
   @ApiQuery({ name: 'title', required: false, description: 'Filtrer par titre' })
   @ApiQuery({ name: 'authorId', required: false, description: 'Filtrer par auteur' })

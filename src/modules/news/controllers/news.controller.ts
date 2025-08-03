@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -25,6 +25,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiQuery,
+  ApiBody,
 } from '@nestjs/swagger';
 import { QueryNewsDto } from '../dto/query-news.dto';
 import { GenerateConfigService } from 'src/common/services/generate-config.service';
@@ -33,7 +34,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 @ApiTags('Actualités')
 @Controller('news')
 export class NewsController {
-  constructor(private readonly newsService: NewsService) {}
+  constructor(private readonly newsService: NewsService) { }
 
   @Post()
   @UseInterceptors(
@@ -55,20 +56,8 @@ export class NewsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Request() req,
   ) {
-    const fileMap: Record<string, string> = {};
-    files.forEach((file, i) => {
-      fileMap[`image_${i}`] = file.path;
-    });
-
-    const compressedPaths = await GenerateConfigService.compressImages(
-      fileMap,
-      './uploads/photos',
-      { quality: 75, width: 1280, height: 720, fit: 'inside' },
-      true,
-    );
-
-    dto.imageUrls = Object.values(compressedPaths);
-    return this.newsService.create(dto, req.user.id);
+    console.log('files:', files);
+    return this.newsService.create(dto, req.user.id, files);
   }
 
   @Get('')
@@ -102,15 +91,34 @@ export class NewsController {
     return this.newsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  @UserRoles(Role.ADMIN, Role.CONSUL)
   @ApiOperation({ summary: 'Mettre à jour une actualité' })
   @ApiResponse({ status: 200, description: 'Actualité mise à jour avec succès.' })
-  @ApiResponse({ status: 400, description: 'Requête invalide.' })
   @ApiResponse({ status: 404, description: 'Actualité non trouvée.' })
-  update(@Param('id') id: string, @Body() dto: UpdateNewsDto, @Request() req) {
-    const updatedNews = this.newsService.update(id, dto, req.user.id);
+  @ApiResponse({ status: 401, description: 'Non autorisé.' })
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Mettre à jour une actualité avec images' })
+  @ApiResponse({ status: 200, description: 'Actualité mise à jour avec succès.' })
+  @ApiResponse({ status: 400, description: 'Requête invalide.' })
+  @ApiResponse({ status: 401, description: 'Non autorisé.' })
+  @ApiBody({ type: UpdateNewsDto })
+  @UseInterceptors(
+    FilesInterceptor(
+      'images',
+      10,
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos'),
+    ),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateNewsDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req
+  ) {
+    console.log('files:', files);
+    const updatedNews = await this.newsService.update(id, dto, req.user.id, files);
     return {
       message: 'Actualité mise à jour avec succès.',
       data: updatedNews,
@@ -124,9 +132,13 @@ export class NewsController {
   @ApiResponse({ status: 200, description: 'Actualité supprimée avec succès.' })
   @ApiResponse({ status: 404, description: 'Actualité non trouvée.' })
   @ApiResponse({ status: 401, description: 'Non autorisé.' })
-  remove(@Param('id') id: string, @Request() req) {
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.newsService.remove(id, req.user.id);
     return {
       message: `Actualité avec l'id ${id} supprimée avec succès.`,
     };
   }
 }
+
+
+

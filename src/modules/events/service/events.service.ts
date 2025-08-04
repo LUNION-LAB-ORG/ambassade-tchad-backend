@@ -141,7 +141,6 @@ export class EventsService {
 
   async update(id: string, UpdateEventsDto: UpdateEventsDto, userId: string, files?: Express.Multer.File[]) {
     const events = await this.findOne(id);
-    console.log(UpdateEventsDto)
     // Traitement des fichiers si présents
     let imageUrls = events.imageUrl; // Garder les anciennes images
     if (files && files.length > 0) {

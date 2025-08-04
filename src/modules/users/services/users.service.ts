@@ -82,8 +82,6 @@ export class UsersService {
     }
     if (filters.status) {
       whereClause.status = filters.status;
-    } else {
-      whereClause.status = { not: UserStatus.INACTIVE };
     }
     if (filters.role) {
       whereClause.role = filters.role;

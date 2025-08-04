@@ -56,7 +56,6 @@ export class NewsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Request() req,
   ) {
-    console.log('files:', files);
     return this.newsService.create(dto, req.user.id, files);
   }
 
@@ -117,7 +116,6 @@ export class NewsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Request() req
   ) {
-    console.log('files:', files);
     const updatedNews = await this.newsService.update(id, dto, req.user.id, files);
     return {
       message: 'Actualité mise à jour avec succès.',

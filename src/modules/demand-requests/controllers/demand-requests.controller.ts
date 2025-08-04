@@ -109,7 +109,6 @@ export class DemandRequestsController {
     async getAllFiltered(
         @Query() query: GetDemandRequestsFilterDto,
     ) {
-        console.log('Query DTO types:', typeof query.limit, typeof query.page, query);
         return this.demandRequestsService.getAllFiltered(query);
     }
 

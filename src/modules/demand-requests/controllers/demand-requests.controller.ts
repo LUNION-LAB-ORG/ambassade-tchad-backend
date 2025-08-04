@@ -2,7 +2,6 @@ import {
     Controller,
     Post,
     Get,
-    Put,
     Param,
     Body,
     Req,
@@ -10,8 +9,7 @@ import {
     Query,
     UseInterceptors,
     UploadedFiles,
-    UsePipes,
-    ValidationPipe,
+    Patch,
 } from '@nestjs/common';
 import {
     ApiBody,
@@ -156,7 +154,7 @@ export class DemandRequestsController {
         return this.demandRequestsService.getServicesPrices();
     }
 
-    @Put(':id/status')
+    @Patch(':id/status')
     @UseGuards(JwtAuthGuard, UserRolesGuard)
     @UserRoles(Role.AGENT, Role.CHEF_SERVICE, Role.CONSUL, Role.ADMIN)
     @ApiOperation({ summary: 'Mettre à jour le statut d\'une demande' })

@@ -23,9 +23,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     // Vérifier si le personnel doit changer son mot de passe initial
-    if (user.isPasswordChangeRequired) {
-      throw new UnauthorizedException('Changement de mot de passe requis.');
-    }
+    // if (user.isPasswordChangeRequired) {
+    //   throw new UnauthorizedException('Changement de mot de passe requis.');
+    // }
     return result;
   }
 

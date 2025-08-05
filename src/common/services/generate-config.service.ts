@@ -15,7 +15,7 @@ export class GenerateConfigService {
                 destination,
                 filename: async (req, file, cb) => {
                     const ext = extname(file.originalname);
-                    const fileNameHash = await GenerateDataService.generateSecureImageName(name ? req.body[name] : file.originalname);
+                    const fileNameHash = await GenerateDataService.generateImageName();
                     const filename = `${fileNameHash}${ext}`;
                     cb(null, filename);
                 },
@@ -37,7 +37,7 @@ export class GenerateConfigService {
                 destination,
                 filename: async (req, file, cb) => {
                     const ext = extname(file.originalname);
-                    const fileNameHash = await GenerateDataService.generateImageName(name ? req.body[name] : file.originalname.split(".")[0]);
+                    const fileNameHash = await GenerateDataService.generateImageName();
                     const filename = `${fileNameHash}${ext}`;
                     cb(null, filename);
                 },
@@ -55,12 +55,11 @@ export class GenerateConfigService {
         return {
             storage: diskStorage({
                 destination,
-                filename: (req, file, cb) => {
+                filename: async (req, file, cb) => {
                     const ext = extname(file.originalname);
-                    const baseName = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const fileName = `${baseName}_${timestamp}${ext}`;
-                    cb(null, fileName);
+                    const fileNameHash = await GenerateDataService.generateImageName();
+                    const filename = `${fileNameHash}${ext}`;
+                    cb(null, filename);
                 }
             }),
             fileFilter: (req, file, cb) => {

@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Transform } from "class-transformer";
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, IsUUID } from "class-validator";
+import { Transform, Type } from "class-transformer";
+import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, IsUUID, IsNumberString } from "class-validator";
 
 export class CreateExpenseDto {
     @ApiProperty({
@@ -8,7 +8,8 @@ export class CreateExpenseDto {
         example: 1000,
         required: true,
     })
-    @IsNumber()
+    @IsNumberString()
+    @Type(() => Number)
     @IsNotEmpty({ message: 'Le montant est obligatoire.' })
     amount: number;
 

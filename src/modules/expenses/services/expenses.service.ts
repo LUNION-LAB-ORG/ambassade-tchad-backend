@@ -58,14 +58,45 @@ export class ExpensesService {
         const limit = filters.limit ?? 10
         const skip = limit * (page - 1)
         const where: Prisma.ExpenseWhereInput = {}
+        
+        // Filtres
         if (filters.recordedById) { where.recordedById = filters.recordedById }
-        if (filters.category) { where.category = filters.category }
+        if (filters.category) { 
+            // Filtrer par nom de catégorie
+            where.category = {
+                name: {
+                    contains: filters.category,
+                    mode: 'insensitive'
+                }
+            } as any
+        }
         if (filters.amount) { where.amount = filters.amount }
         if (filters.expenseDate) { where.expenseDate = { gte: new Date(filters.expenseDate) } }
+        if (filters.recordedBy) {
+            where.recordedBy = {
+                OR: [
+                    { firstName: { contains: filters.recordedBy, mode: 'insensitive' } },
+                    { lastName: { contains: filters.recordedBy, mode: 'insensitive' } }
+                ]
+            }
+        }
+        
         const [total_expense, all_expense] = await Promise.all([
             this.prisma.expense.count({ where }),
             this.prisma.expense.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
                 include: {
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                            description: true,
+                            isActive: true
+                        }
+                    },
                     recordedBy: {
                         select: {
                             id: true,
@@ -98,39 +129,73 @@ export class ExpensesService {
             _sum: { amount: true },
         });
 
-        // 2. Par catégorie (y compris isActive)
-        const byCategory = await this.prisma.expenseCategory.findMany({
+        // 2. Statistiques détaillées par catégorie
+        const expensesByCategory = await this.prisma.expense.groupBy({
+            by: ['categoryId'],
+            _count: { id: true },
+            _sum: { amount: true },
+        });
+
+        // 3. Récupérer les informations des catégories avec statistiques
+        const categoriesWithStats = await Promise.all(
+            expensesByCategory.map(async (stat) => {
+                const category = await this.prisma.expenseCategory.findUnique({
+                    where: { id: stat.categoryId },
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        isActive: true
+                    }
+                });
+                
+                return {
+                    categoryId: stat.categoryId,
+                    categoryName: category?.name || 'Catégorie supprimée',
+                    categoryDescription: category?.description,
+                    isActive: category?.isActive || false,
+                    expenseCount: stat._count.id,
+                    totalAmount: stat._sum.amount || 0,
+                    percentage: totalExpenses > 0 ? ((stat._count.id / totalExpenses) * 100).toFixed(2) : '0.00'
+                };
+            })
+        );
+
+        // 4. Catégories sans dépenses
+        const categoriesWithoutExpenses = await this.prisma.expenseCategory.findMany({
+            where: {
+                expenses: {
+                    none: {}
+                }
+            },
             select: {
                 id: true,
                 name: true,
-                isActive: true,
-                _count: { select: { expenses: true } },
-            },
+                description: true,
+                isActive: true
+            }
         });
 
-        // 3. Par utilisateur
+        const emptyCategoriesStats = categoriesWithoutExpenses.map(category => ({
+            categoryId: category.id,
+            categoryName: category.name,
+            categoryDescription: category.description,
+            isActive: category.isActive,
+            expenseCount: 0,
+            totalAmount: 0,
+            percentage: '0.00'
+        }));
+
+        // 5. Combiner toutes les catégories
+        const allCategoriesStats = [...categoriesWithStats, ...emptyCategoriesStats]
+            .sort((a, b) => b.expenseCount - a.expenseCount); // Trier par nombre de dépenses décroissant
+
+        // 6. Par utilisateur
         const byAuthor = await this.prisma.expense.groupBy({
             by: ['recordedById'],
             _count: { id: true },
             _sum: { amount: true },
         });
-
-        // 4. Dépenses actives/inactives
-        const activeStatusStats = await this.prisma.expense.groupBy({
-            by: ['categoryId'],
-            where: {
-                category: { isActive: true },
-            },
-            _count: { id: true },
-            _sum: { amount: true },
-        });
-
-        // 5. Formatage des résultats
-        const categories = byCategory.map((category) => ({
-            id: category.id,
-            name: category.name,
-            isActive: category.isActive,
-        }));
 
         const authors = await Promise.all(
             byAuthor.map(async (author) => {
@@ -143,22 +208,38 @@ export class ExpensesService {
                     userName: `${user?.firstName} ${user?.lastName}`,
                     count: author._count.id,
                     totalAmount: author._sum.amount || 0,
+                    percentage: totalExpenses > 0 ? ((author._count.id / totalExpenses) * 100).toFixed(2) : '0.00'
                 };
             })
         );
+
+        // 7. Top 5 catégories par nombre de dépenses
+        const top5Categories = categoriesWithStats
+            .filter(cat => cat.expenseCount > 0)
+            .sort((a, b) => b.expenseCount - a.expenseCount)
+            .slice(0, 5);
+
+        // 8. Top 5 catégories par montant
+        const top5CategoriesByAmount = categoriesWithStats
+            .filter(cat => cat.totalAmount > 0)
+            .sort((a, b) => b.totalAmount - a.totalAmount)
+            .slice(0, 5);
 
         return {
             global: {
                 totalExpenses,
                 totalAmount: totalAmount._sum.amount || 0,
+                totalCategories: allCategoriesStats.length,
+                activeCategories: allCategoriesStats.filter(cat => cat.isActive).length,
+                categoriesWithExpenses: categoriesWithStats.length,
+                categoriesWithoutExpenses: emptyCategoriesStats.length
             },
-            byCategory: categories,
-            byAuthor: authors,
-            activeStats: {
-                activeCategories: activeStatusStats.length,
-                activeExpenses: activeStatusStats.reduce((acc, curr) => acc + curr._count.id, 0),
-                activeAmount: activeStatusStats.reduce((acc, curr) => acc + (curr._sum.amount || 0), 0),
-            },
+            byCategory: allCategoriesStats,
+            byAuthor: authors.sort((a, b) => b.count - a.count),
+            topCategories: {
+                byExpenseCount: top5Categories,
+                byTotalAmount: top5CategoriesByAmount
+            }
         };
     }
 
@@ -166,6 +247,14 @@ export class ExpensesService {
         const expense = await this.prisma.expense.findUnique({
             where: { id },
             include: {
+                category: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        isActive: true
+                    }
+                },
                 recordedBy: {
                     select: {
                         id: true,

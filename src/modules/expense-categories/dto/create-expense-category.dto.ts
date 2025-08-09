@@ -43,5 +43,5 @@ export class CreateExpenseCategoryDto {
     }
     return value;
   })
-  isActive?: boolean = true;
+  isActive?: boolean;
 }

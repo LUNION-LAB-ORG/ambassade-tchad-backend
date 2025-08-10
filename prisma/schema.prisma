@@ -115,16 +115,6 @@ enum OriginCountryParentRelationshipType {
   MOTHER
 }
 
-// // Catégorie des dépenses
-// enum ExpenseCategory {
-//   SALARIES // Salaires
-//   GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
-//   RENT // Loyers
-//   INTERNET_COMM // Canal et Internet
-//   UTILITIES // CIE et SODECI (Charges)
-//   OTHER // Autre
-// }
-
 // Type de notification (catégorie)
 enum NotificationType {
   SYSTEM // Notifications générées par le système (ex: compte activé, statut de demande)

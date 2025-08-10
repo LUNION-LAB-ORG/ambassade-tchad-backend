@@ -12,7 +12,6 @@ export class ExpenseCategoriesService {
     constructor(private prisma: PrismaService) { }
 
     async create(createExpenseCategoryDto: CreateExpenseCategoryDto) {
-        // Vérifier si une catégorie avec le même nom existe déjà
         const existingCategory = await this.prisma.expenseCategory.findUnique({
             where: { name: createExpenseCategoryDto.name }
         });
@@ -26,38 +25,22 @@ export class ExpenseCategoriesService {
         });
     }
 
-    async findAllWithFilters(filters: QueryExpenseCategoryDto): Promise<QueryResponseDto<ExpenseCategoryModel>> {
-        const page = filters.page ?? 1
-        const limit = filters.limit ?? 10
-        const skip = limit * (page - 1)
+    async findAllWithFilters(filters: QueryExpenseCategoryDto): Promise<ExpenseCategoryModel[]> {
         const where: Prisma.ExpenseCategoryWhereInput = {}
-        if (filters.name) { where.name = filters.name }
+        if (filters.name) { where.name = { contains: filters.name, mode: 'insensitive' } }
         if (filters.isActive) { where.isActive = filters.isActive }
-        const [total_expense_category, all_expense_category] = await Promise.all([
-            this.prisma.expenseCategory.count({ where }),
-            this.prisma.expenseCategory.findMany({
-                where,
-                orderBy: { createdAt: 'desc' },
-                take: limit,
-                skip
-            })
-        ])
 
-        const total_page = Math.ceil(total_expense_category / limit)
-        return ({
-            data: all_expense_category,
-            meta: {
-                total: total_expense_category,
-                page: page,
-                limit: limit,
-                totalPages: total_page
-            }
+        const all_expense_category = await this.prisma.expenseCategory.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
         })
+
+        return all_expense_category;
     }
 
     async findOne(id: string) {
         return this.prisma.expenseCategory.findUnique({ where: { id } });
-    }   
+    }
 
     async getStats() {
         const total = await this.prisma.expenseCategory.count();
@@ -79,5 +62,5 @@ export class ExpenseCategoriesService {
 
     async remove(id: string) {
         return this.prisma.expenseCategory.delete({ where: { id } });
-    }   
+    }
 }

@@ -57,9 +57,7 @@ import { ServiceConsulaireModule } from './modules/services_consulaire/service_c
    VideosModule,
    DemandRequestsModule,
    ExpensesModule,
-   ServiceConsulaireModule,
-   ExpenseCategoriesModule,
-   
+   ServiceConsulaireModule,   
   ],
  
 })

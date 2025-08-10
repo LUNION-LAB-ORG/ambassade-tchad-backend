@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, IsUUID, IsNumberString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class CreateExpenseDto {
     @ApiProperty({
@@ -8,7 +8,6 @@ export class CreateExpenseDto {
         example: 1000,
         required: true,
     })
-    @IsNumberString()
     @Type(() => Number)
     @IsNotEmpty({ message: 'Le montant est obligatoire.' })
     amount: number;
@@ -39,8 +38,7 @@ export class CreateExpenseDto {
         example: "2022-01-01",
         required: true,
     })
-    @IsDateString()
     @IsNotEmpty({ message: 'La date est obligatoire.' })
-    @Transform(({ value }) => value.trim()) 
+    @Transform(({ value }) => value.trim())
     expenseDate: string;
 }

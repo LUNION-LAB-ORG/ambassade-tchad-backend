@@ -8,9 +8,9 @@ import {
   Query,
   Request,
   UseGuards,
-  Put,
   UseInterceptors,
   UploadedFiles,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { PhotosService } from '../services/photos.service';
@@ -102,7 +102,7 @@ export class PhotosController {
     return this.photosService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
   @ApiOperation({ summary: 'Mettre à jour une photo' })

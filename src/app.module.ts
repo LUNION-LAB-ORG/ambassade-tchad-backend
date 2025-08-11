@@ -25,6 +25,8 @@ import { EventsModule } from './modules/events/events.module';
 import { VideosModule } from './modules/galerie/videos/videos.module';
 import { PhotosModule } from './modules/galerie/photos/photos.module';
 import { DemandRequestsModule } from './modules/demand-requests/demand-requests.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ServiceConsulaireModule } from './modules/services_consulaire/service_consulaire.module';
 
 @Module({
   imports: [
@@ -54,7 +56,8 @@ import { DemandRequestsModule } from './modules/demand-requests/demand-requests.
    PhotosModule,
    VideosModule,
    DemandRequestsModule,
-   
+   ExpensesModule,
+   ServiceConsulaireModule,   
   ],
  
 })

@@ -10,8 +10,6 @@ import {
   Param,
   Query,
   HttpStatus,
-  BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { CreateUserDto } from '../dto/create-user.dto';

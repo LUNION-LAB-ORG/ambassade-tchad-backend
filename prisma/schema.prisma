@@ -115,16 +115,6 @@ enum OriginCountryParentRelationshipType {
   MOTHER
 }
 
-// Catégorie des dépenses
-enum ExpenseCategory {
-  SALARIES // Salaires
-  GENERAL_OVERHEAD // Moyens Généraux (Moyens Gén)
-  RENT // Loyers
-  INTERNET_COMM // Canal et Internet
-  UTILITIES // CIE et SODECI (Charges)
-  OTHER // Autre
-}
-
 // Type de notification (catégorie)
 enum NotificationType {
   SYSTEM // Notifications générées par le système (ex: compte activé, statut de demande)
@@ -642,14 +632,25 @@ model Video {
   @@index([createdAt])
 }
 
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  description String?
+  isActive  Boolean  @default(true)
+  expenses  Expense[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Dépenses
 model Expense {
   id String @id @default(uuid())
 
   amount      Float // Montant de la dépense
   description String? // Description de la dépense (Description)
-  category    ExpenseCategory // Catégorie de la dépense
-
+ // Relation avec la catégorie
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  categoryId  String
   // Qui a exécuté/enregistré cette dépense (Exécuté par)
   recordedById String
   recordedBy   User   @relation("ExpenseRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
@@ -659,7 +660,7 @@ model Expense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([category])
+  @@index([categoryId])
   @@index([expenseDate])
   @@index([recordedById])
 }

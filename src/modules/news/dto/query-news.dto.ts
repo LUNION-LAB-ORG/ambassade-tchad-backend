@@ -17,14 +17,6 @@ export class QueryNewsDto {
   published?: boolean;
 
   @IsOptional()
-  @IsString()
-  location?: String;
-
-  @IsOptional()
-  @IsDateString()
-  eventDate: string;
-
-  @IsOptional()
   @IsDateString()
   fromDate?: string;
 

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { userSeed } from './user.seed';
 import { serviceSeed } from './service.seed';
+import { categoriesDepensesSeed } from './categorie-depense.seed';
 
 const prisma = new PrismaClient({ log: ['query', 'info', 'warn', 'error'] });
 
@@ -16,6 +17,14 @@ async function main() {
   // Exécution du seeder des services
   await serviceSeed().catch((e) => {
     console.error('Erreur lors du seeding des services:', e);
+    process.exit(1);
+  });
+
+  console.log('--- Processus de seeding global terminé avec succès ---');
+
+  // Exécution du seeder des catégories de dépenses
+  await categoriesDepensesSeed().catch((e) => {
+    console.error('Erreur lors du seeding des catégories de dépenses:', e);
     process.exit(1);
   });
 

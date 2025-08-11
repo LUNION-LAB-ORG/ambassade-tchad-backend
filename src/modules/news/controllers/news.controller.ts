@@ -11,6 +11,7 @@ import {
   UseGuards,
   UploadedFiles,
   UseInterceptors,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { NewsService } from '../services/news.service';
@@ -90,7 +91,7 @@ export class NewsController {
     return this.newsService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CONSUL)
   @ApiOperation({ summary: 'Mettre à jour une actualité' })

@@ -8,10 +8,8 @@ import {
   Query,
   Request,
   UseGuards,
-  Put,
   UploadedFiles,
   UseInterceptors,
-  Req,
   Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';

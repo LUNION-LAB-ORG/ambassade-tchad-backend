@@ -8,7 +8,7 @@ import {
   Query,
   Request,
   UseGuards,
-  Put,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { UserRoles } from 'src/modules/users/decorators/user-roles.decorator';
@@ -69,7 +69,7 @@ export class VideosController {
     return this.videosService.findOne(id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
   @ApiOperation({ summary: 'Mettre à jour une vidéo' })

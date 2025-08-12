@@ -9,49 +9,62 @@ import { QueryResponseDto } from 'src/common/dto/query-response.dto';
 export class PhotosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createPhotosDto: CreatePhotosDto) {
-    const { title, description, imageUrl } = createPhotosDto;
+  async processImages(files: Express.Multer.File[]): Promise<string[]> {
+    return files.map(file => file.path);
+  }
 
+  async create(createPhotosDto: CreatePhotosDto, files?: Express.Multer.File[]) {
+    const { title, description } = createPhotosDto;
+
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      imageUrls = await this.processImages(files);
+    } else if (createPhotosDto.imageUrl) {
+      imageUrls = Array.isArray(createPhotosDto.imageUrl) 
+        ? createPhotosDto.imageUrl 
+        : [createPhotosDto.imageUrl];
+    }
 
     return this.prisma.photo.create({
       data: {
         title,
         description,
-        imageUrl: imageUrl,
+        imageUrl: imageUrls,
       },
     });
   }
 
-  async findAllWithFilters(filters: QueryPhotoDto ):Promise<QueryResponseDto<Photo>> {
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const skip = limit * (page - 1)
-    const where : Prisma.PhotoWhereInput = {}
-    if(filters.title){where.title = {contains:filters.title, mode: 'insensitive'}}
-    if(filters.authorId){where.id = filters.authorId}
-    if(filters.toDate){where.createdAt= {lte:new Date(filters.toDate)}}
-    if(filters.fromDate){where.createdAt= {gte:new Date(filters.fromDate)}}
+  async findAllWithFilters(filters: QueryPhotoDto): Promise<QueryResponseDto<Photo>> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = limit * (page - 1);
+    const where: Prisma.PhotoWhereInput = {};
+    
+    if (filters.title) { where.title = { contains: filters.title, mode: 'insensitive' }; }
+    if (filters.authorId) { where.id = filters.authorId; }
+    if (filters.toDate) { where.createdAt = { lte: new Date(filters.toDate) }; }
+    if (filters.fromDate) { where.createdAt = { gte: new Date(filters.fromDate) }; }
+
     const [total_photo, all_photo] = await Promise.all([ 
-      this.prisma.photo.count({where}), 
+      this.prisma.photo.count({ where }), 
       this.prisma.photo.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        take : limit,
-        skip
-      })
-    ])
+        take: limit,
+        skip,
+      }),
+    ]);
 
-    const total_page = Math.ceil(total_photo / limit)
-    return({
-      data : all_photo,
-      meta :{
+    const total_page = Math.ceil(total_photo / limit);
+    return {
+      data: all_photo,
+      meta: {
         total: total_photo,
-        page : page,
-        limit : limit,
-        totalPages : total_page
-      }
-    })
-
+        page: page,
+        limit: limit,
+        totalPages: total_page,
+      },
+    };
   }
 
   async getStats() {
@@ -71,18 +84,30 @@ export class PhotosService {
     return photo;
   }
 
-  async update(id: string, updatePhotosDto: CreatePhotosDto) {
-    const { title, description, imageUrl } = updatePhotosDto;
-
+  async update(
+    id: string, 
+    updatePhotosDto: CreatePhotosDto, 
+    files?: Express.Multer.File[]
+  ) {
+    const { title, description } = updatePhotosDto;
 
     await this.findOne(id); // Vérifie d'abord que la photo existe
+
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      imageUrls = await this.processImages(files);
+    } else if (updatePhotosDto.imageUrl) {
+      imageUrls = Array.isArray(updatePhotosDto.imageUrl) 
+        ? updatePhotosDto.imageUrl 
+        : [updatePhotosDto.imageUrl];
+    }
 
     const updatedPhoto = await this.prisma.photo.update({
       where: { id },
       data: {
         title,
         description,
-        imageUrl: imageUrl
+        imageUrl: imageUrls,
       },
     });
 
@@ -92,7 +117,7 @@ export class PhotosService {
     };
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string) {
     await this.findOne(id);
 
     await this.prisma.photo.delete({

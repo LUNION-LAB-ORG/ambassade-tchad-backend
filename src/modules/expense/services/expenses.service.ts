@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreateExpenseDto } from '../dto/create-expense.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
-import { Prisma, Expense as ExpenseModel, ExpenseCategory } from '@prisma/client';
+import { Prisma, Expense as ExpenseModel } from '@prisma/client';
 import { QueryExpenseDto } from '../dto/query-expense.dto';
 import { UpdateExpenseDto } from '../dto/update-expense.dto';
 

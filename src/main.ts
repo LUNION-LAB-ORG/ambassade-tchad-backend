@@ -56,7 +56,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, documentFactory);
 
   // Lancer le serveur
-  const port = process.env.PORT ?? 8081;
+  const port = process.env.PORT ?? 3022;
   await app.listen(port);
 
   // 👇 Ajoute ceci pour afficher l’URL dans la console

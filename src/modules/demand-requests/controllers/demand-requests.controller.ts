@@ -37,7 +37,7 @@ import { NationalityCertificateRequestDetailsDto } from '../dto/type-demand-dto/
 import { PowerOfAttorneyRequestDetailsDto } from '../dto/type-demand-dto/power-of-attorney-request-details.dto';
 import { DeathActRequestDetailsDto } from '../dto/type-demand-dto/death-act-request-details.dto';
 import { CreateDemandRequestDto } from '../dto/create-demandRequest.dto';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { GenerateConfigService } from 'src/common/services/generate-config.service';
 import { Request } from 'express';
 
@@ -66,7 +66,7 @@ export class DemandRequestsController {
         type: CreateDemandRequestDto,
     })
     @UseInterceptors(
-        AnyFilesInterceptor(GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
+        FilesInterceptor('documents', 20, GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
     )
     @UseGuards(JwtDemandeurAuthGuard)
     async create(

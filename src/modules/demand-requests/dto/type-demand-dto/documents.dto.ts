@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateDocumentDto {
   @ApiProperty({ example: 'VISA_john.doe@example.com_2025-07-16.pdf' })
@@ -16,6 +17,7 @@ export class CreateDocumentDto {
 
   @ApiProperty({ example: 153 }) 
   @IsInt()
+  @Type(() => Number)
   fileSizeKB: number;
 
   @ApiProperty({ example: 'uuid-of-uploader' })

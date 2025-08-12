@@ -7,7 +7,7 @@ import {
     MaxLength,
     IsInt,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     Gender,
     MaritalStatus,
@@ -24,8 +24,8 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @IsString({message: "Le prenom doit être une chaîne de caractères."})
-    @MaxLength(255, {message: 'Le prenom ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: "Le prenom doit être une chaîne de caractères." })
+    @MaxLength(255, { message: 'Le prenom ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le prenom est obligatoire.' })
     personFirstName: string;
 
@@ -35,10 +35,10 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @IsString({message: "Le nom doit être une chaîne de caractères."})
-    @MaxLength(255, {message: 'Le nom ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: "Le nom doit être une chaîne de caractères." })
+    @MaxLength(255, { message: 'Le nom ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le nom est obligatoire.' })
-    @Transform(({ value }) => value.trim())    
+    @Transform(({ value }) => value.trim())
     personLastName: string;
 
     @ApiProperty({
@@ -47,11 +47,11 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @IsString({message: "Le genre doit être une chaîne de caractères."})
-    @MaxLength(255, {message: 'Le genre ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: "Le genre doit être une chaîne de caractères." })
+    @MaxLength(255, { message: 'Le genre ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le genre est obligatoire.' })
-    @Transform(({ value }) => value.trim())    
-    @IsEnum(Gender) 
+    @Transform(({ value }) => value.trim())
+    @IsEnum(Gender)
     personGender: Gender;
 
     @ApiProperty({
@@ -60,10 +60,10 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @IsString({message: "La nationalité doit être une chaîne de caractères."})
-    @MaxLength(255, {message: 'La nationalité ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: "La nationalité doit être une chaîne de caractères." })
+    @MaxLength(255, { message: 'La nationalité ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'La nationalité est obligatoire.' })
-    @Transform(({ value }) => value.trim())  
+    @Transform(({ value }) => value.trim())
     personNationality: string;
 
     @ApiProperty({
@@ -72,9 +72,9 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'La date de naissance ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'La date de naissance ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'La date de naissance est obligatoire.' })
-    @IsDateString() 
+    @IsDateString({}, { message: 'La date de naissance doit être une date valide.' })
     personBirthDate: string;
 
     @ApiProperty({
@@ -83,10 +83,10 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @IsString({message: "Le lieu de naissance doit être une chaîne de caractères."})
-    @MaxLength(255, {message: 'Le lieu de naissance ne doit pas dépasser 255 caractères.'})
+    @IsString({ message: "Le lieu de naissance doit être une chaîne de caractères." })
+    @MaxLength(255, { message: 'Le lieu de naissance ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le lieu de naissance est obligatoire.' })
-    @Transform(({ value }) => value.trim())  
+    @Transform(({ value }) => value.trim())
     @IsString() personBirthPlace: string;
 
     @ApiProperty({
@@ -95,48 +95,48 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'Le statut matrimonial ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'Le statut matrimonial ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le statut matrimonial est obligatoire.' })
-    @Transform(({ value }) => value.trim())  
-    @IsEnum(MaritalStatus) 
+    @Transform(({ value }) => value.trim())
+    @IsEnum(MaritalStatus)
     personMaritalStatus: MaritalStatus;
 
-    
+
     @ApiProperty({
         description: "le type de passport du demandeur de visa",
         example: "Ordinaire",
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'Le type de passport ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'Le type de passport ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le type de passport est obligatoire.' })
-    @IsEnum(PassportType) 
+    @IsEnum(PassportType)
     passportType: PassportType;
 
-    
+
     @ApiProperty({
         description: "le numero du passport du demandeur de visa",
         example: "PA2545kkdjh478",
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'Le numero du passport ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'Le numero du passport ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Le numer du passport est obligatoire.' })
-    @Transform(({ value }) => value.trim()) 
-    @IsString({message: "Le numero du passport doit être une chaîne de caractère"}) 
+    @Transform(({ value }) => value.trim())
+    @IsString({ message: "Le numero du passport doit être une chaîne de caractère" })
     passportNumber: string;
 
-    
+
     @ApiProperty({
         description: "le pays de delivrance du passport du demandeur de visa",
         example: "france",
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'Le pays de delivrance du passport ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'Le pays de delivrance du passport ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'Lepays de delivrance du passport est obligatoire.' })
-    @Transform(({ value }) => value.trim()) 
-    @IsString({message: "Le pays de delivrance du passport doit être une chaîne de caractère"}) 
+    @Transform(({ value }) => value.trim())
+    @IsString({ message: "Le pays de delivrance du passport doit être une chaîne de caractère" })
     passportIssuedBy: string;
 
     @ApiProperty({
@@ -145,9 +145,9 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'La date de delivrance du passport ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'La date de delivrance du passport ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'La date de delivrance du passport est obligatoire.' })
-    @IsDateString() 
+    @IsDateString({}, { message: 'La date de delivrance du passport doit être une date valide.' })
     passportIssueDate: string;
 
     @ApiProperty({
@@ -156,9 +156,9 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'la date d\'expiration du passport ne doit pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'la date d\'expiration du passport ne doit pas dépasser 255 caractères.' })
     @IsNotEmpty({ message: 'la date d\'expiration du passport est obligatoire.' })
-    @IsDateString() 
+    @IsDateString({}, { message: 'la date d\'expiration du passport doit être une date valide.' })
     passportExpirationDate: string;
 
     @ApiProperty({
@@ -167,9 +167,9 @@ export class VisaRequestDetailsDto {
         required: false,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'la  profession pas dépasser 255 caractères.'})
+    @MaxLength(255, { message: 'la  profession pas dépasser 255 caractères.' })
     @IsOptional()
-    @IsString({message: 'La profession doit être une chaîne de caractère'}) 
+    @IsString({ message: 'La profession doit être une chaîne de caractère' })
     profession?: string;
 
     @ApiProperty({
@@ -178,9 +178,9 @@ export class VisaRequestDetailsDto {
         required: false,
         maxLength: 255
     })
-    @Transform(({ value }) => value.trim()) 
-    @IsOptional() 
-    @IsString({message: 'l\'addresse de votre employeur doit être une chaîne de caractère'}) 
+    @Transform(({ value }) => value.trim())
+    @IsOptional()
+    @IsString({ message: 'l\'addresse de votre employeur doit être une chaîne de caractère' })
     employerAddress?: string;
 
     @ApiProperty({
@@ -189,12 +189,12 @@ export class VisaRequestDetailsDto {
         required: false,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'le numéro de téléphone de votre employeur pas dépasser 255 caractères.'})
-    @IsOptional() 
-    @IsString({message: 'le numéro de téléphone de votre employeur doit être une chaîne de caractère'})  
+    @MaxLength(255, { message: 'le numéro de téléphone de votre employeur pas dépasser 255 caractères.' })
+    @IsOptional()
+    @IsString({ message: 'le numéro de téléphone de votre employeur doit être une chaîne de caractère' })
     employerPhoneNumber?: string;
 
-   
+
     @ApiProperty({
         description: "La durée de votre sejour",
         example: 5,
@@ -202,7 +202,8 @@ export class VisaRequestDetailsDto {
         maxLength: 255
     })
     @IsNotEmpty({ message: 'La durée de votre sejour est obligatoire.' })
-    @IsInt({message: 'la durée de votre sejour est un entier'}) 
+    @IsInt({ message: 'la durée de votre sejour est un entier' })
+    @Type(() => Number)
     durationMonths: number;
 
     @ApiProperty({
@@ -211,9 +212,9 @@ export class VisaRequestDetailsDto {
         required: true,
         maxLength: 255
     })
-    @MaxLength(255, {message: 'La ville de votre destination pas dépasser 255 caractères.'})
-    @IsOptional() 
-    @IsString({message: "La ville doit etre une chaîne de caractère"}) 
+    @MaxLength(255, { message: 'La ville de votre destination pas dépasser 255 caractères.' })
+    @IsOptional()
+    @IsString({ message: "La ville doit etre une chaîne de caractère" })
     destinationState?: string;
 
     @IsOptional()

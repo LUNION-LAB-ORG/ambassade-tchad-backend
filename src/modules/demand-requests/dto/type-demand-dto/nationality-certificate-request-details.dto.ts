@@ -9,10 +9,10 @@ import {
     ServiceType,
     OriginCountryParentRelationshipType,
 } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class NationalityCertificateRequestDetailsDto {
-     @ApiProperty({
+     @ApiPropertyOptional({
     description: 'Type de service (fixé à CERTIFICAT DE NATIONALITE)',
     enum: ServiceType,
     example: ServiceType.NATIONALITY_CERTIFICATE,

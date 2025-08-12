@@ -1,24 +1,24 @@
 import {
-    IsEnum,
-    IsOptional,
-    ValidateNested,
-    IsDateString,
-    IsString,
-    IsArray,
-    IsNotEmpty,
-    MaxLength,
-    IsBoolean,
+  IsEnum,
+  IsOptional,
+  ValidateNested,
+  IsDateString,
+  IsString,
+  IsArray,
+  IsNotEmpty,
+  MaxLength,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-    ServiceType,
-    JustificationDocumentType,
+  ServiceType,
+  JustificationDocumentType,
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AccompanierDto } from './accompanier.dto';
 
 export class LaissezPasserRequestDetailsDto {
-      @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Type de service (fixé à LAISSER PASSER)',
     enum: ServiceType,
     example: ServiceType.LAISSEZ_PASSER,
@@ -92,6 +92,7 @@ export class LaissezPasserRequestDetailsDto {
 
   @ApiProperty({ description: "Accompagné ou non" })
   @IsBoolean()
+  @Type(() => Boolean)
   accompanied: boolean;
 
   @ApiPropertyOptional({ description: "Liste des accompagnants", type: [AccompanierDto] })
@@ -111,6 +112,4 @@ export class LaissezPasserRequestDetailsDto {
   @MaxLength(255)
   @IsNotEmpty()
   justificationDocumentNumber: string;
-
-
 }

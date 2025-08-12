@@ -39,17 +39,17 @@ export class DeathActRequestDetailsDto {
     description: 'Date de naissance du défunt',
     example: '1950-04-22',
   })
-  @IsDateString()
+  @IsDateString({}, { message: 'La date de naissance doit être au format ISO 8601' })
   @IsNotEmpty()
-  deceasedBirthDate: Date;
+  deceasedBirthDate: string;
 
   @ApiProperty({
     description: 'Date de décès du défunt',
     example: '2023-01-15',
   })
-  @IsDateString()
+  @IsDateString({}, { message: 'La date de décès doit être au format ISO 8601' })
   @IsNotEmpty()
-  deceasedDeathDate: Date;
+  deceasedDeathDate: string;
 
   @ApiProperty({
     description: 'Nationalité du défunt',

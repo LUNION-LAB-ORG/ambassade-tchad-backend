@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreateExpenseDto } from '../dto/create-expense.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
@@ -13,24 +13,23 @@ export class ExpensesService {
     async create(dto: CreateExpenseDto, userId: string) {
         // Résoudre le nom de catégorie en ID
         const category = await this.prisma.expenseCategory.findUnique({
-            where: { name: dto.categoryName }
+            where: {
+                name: dto.categoryName,
+                isActive: true
+            }
         });
 
         if (!category) {
             throw new NotFoundException(`Catégorie "${dto.categoryName}" introuvable`);
         }
 
-        // Vérification temporairement désactivée
-        // if (!category.isActive) {
-        //     throw new ConflictException(`La catégorie "${dto.categoryName}" est désactivée`);
-        // }
-
         // Créer la dépense avec l'ID de catégorie résolu
         const { categoryName, ...expenseData } = dto;
-        
+
         return this.prisma.expense.create({
             data: {
                 ...expenseData,
+                expenseDate: new Date(expenseData.expenseDate),
                 categoryId: category.id,
                 recordedById: userId
             },
@@ -58,10 +57,14 @@ export class ExpensesService {
         const limit = filters.limit ?? 10
         const skip = limit * (page - 1)
         const where: Prisma.ExpenseWhereInput = {}
-        
+
         // Filtres
-        if (filters.recordedById) { where.recordedById = filters.recordedById }
-        if (filters.category) { 
+        if (filters.recordedBy) {
+            where.recordedBy = {
+                id: filters.recordedBy
+            }
+        }
+        if (filters.category) {
             // Filtrer par nom de catégorie
             where.category = {
                 name: {
@@ -70,17 +73,11 @@ export class ExpensesService {
                 }
             } as any
         }
-        if (filters.amount) { where.amount = filters.amount }
+        if (filters.amount) { where.amount = { gte: filters.amount } }
         if (filters.expenseDate) { where.expenseDate = { gte: new Date(filters.expenseDate) } }
-        if (filters.recordedBy) {
-            where.recordedBy = {
-                OR: [
-                    { firstName: { contains: filters.recordedBy, mode: 'insensitive' } },
-                    { lastName: { contains: filters.recordedBy, mode: 'insensitive' } }
-                ]
-            }
-        }
-        
+        if (filters.description) { where.description = { contains: filters.description, mode: 'insensitive' } }
+
+
         const [total_expense, all_expense] = await Promise.all([
             this.prisma.expense.count({ where }),
             this.prisma.expense.findMany({
@@ -148,7 +145,7 @@ export class ExpensesService {
                         isActive: true
                     }
                 });
-                
+
                 return {
                     categoryId: stat.categoryId,
                     categoryName: category?.name || 'Catégorie supprimée',
@@ -273,13 +270,14 @@ export class ExpensesService {
     }
 
     async update(id: string, updateExpenseDto: UpdateExpenseDto) {
-        // Vérifier que la dépense existe avant de la mettre à jour
         await this.findOne(id);
 
-        // Mettre à jour la dépense et retourner les données complètes avec les relations
         return this.prisma.expense.update({
             where: { id },
-            data: updateExpenseDto as Prisma.ExpenseUpdateInput,
+            data: {
+                ...updateExpenseDto,
+                expenseDate: updateExpenseDto.expenseDate ? new Date(updateExpenseDto.expenseDate) : undefined,
+            },
             include: {
                 recordedBy: {
                     select: {

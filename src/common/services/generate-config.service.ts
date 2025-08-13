@@ -43,7 +43,7 @@ export class GenerateConfigService {
                 },
             }),
             fileFilter: (req, file, cb) => {
-                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|pdf)$/)) {
+                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|svg|)$/)) {
                     return cb(new Error('Seuls les fichiers image sont acceptés'), false);
                 }
                 cb(null, true);

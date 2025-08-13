@@ -1,28 +1,24 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { ExpenseCategory } from "@prisma/client";
 import { Type } from "class-transformer";
-import { IsOptional, IsString, IsNumber, IsInt, Min, Max, IsEnum } from "class-validator";
+import { IsOptional, IsString, IsNumber, IsInt, Min, Max } from "class-validator";
 
 export class QueryExpenseDto {
     @IsOptional()
-    @IsString()
-    title?: string;
-
-    @IsOptional()
     @IsNumber()
+    @Type(() => Number)
     amount?: number;
 
     @IsOptional()
     @IsString()
-    category?: ExpenseCategory;
-
-    @IsOptional()
-    @IsString()
-    recordedById?: string;
+    category?: string;
 
     @IsOptional()
     @IsString()
     recordedBy?: string;
+
+    @IsOptional()
+    @IsString()
+    description?: string;
 
     @IsOptional()
     @IsString()
@@ -53,6 +49,4 @@ export class QueryExpenseDto {
     @Min(1, { message: 'Le nombre d\'éléments par page doit être au moins 1.' })
     @Max(100, { message: 'Le nombre d\'éléments par page ne peut pas dépasser 100.' })
     limit?: number = 10;
-
-
 }

@@ -7,9 +7,10 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
 import { UpdateExpenseDto } from '../dto/update-expense.dto';
 import { QueryExpenseDto } from '../dto/query-expense.dto';
+import { Role, User } from '@prisma/client';
+import { Request } from 'express';
 import { UserRolesGuard } from 'src/modules/users/guards/user-roles.guard';
 import { UserRoles } from 'src/modules/users/decorators/user-roles.decorator';
-import { Role } from '@prisma/client';
 
 @ApiTags('Dépenses')
 @Controller('expenses')
@@ -24,9 +25,10 @@ export class ExpensesController {
     @ApiResponse({ status: 401, description: 'Non autorisé' })
     async create(
         @Body() dto: CreateExpenseDto,
-        @Req() req
+        @Req() req: Request,
     ) {
-        return this.expensesService.create(dto, req.user.id);
+        const user = req.user as User;
+        return this.expensesService.create(dto, user.id);
     }
 
     @Get()
@@ -60,8 +62,7 @@ export class ExpensesController {
     }
 
     @Patch(':id')
-    @UseGuards(JwtAuthGuard, UserRolesGuard)
-    @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Mettre à jour une dépense par ID' })
     @ApiResponse({ status: 200, description: 'Dépense mise à jour' })
     @ApiResponse({ status: 401, description: 'Non autorisé' })
@@ -74,13 +75,11 @@ export class ExpensesController {
 
     @Delete(':id')
     @UseGuards(JwtAuthGuard, UserRolesGuard)
-    @UserRoles(Role.ADMIN, Role.CONSUL)
+    @UserRoles(Role.ADMIN)
     @ApiOperation({ summary: 'Supprimer une dépense par ID' })
     @ApiResponse({ status: 200, description: 'Dépense supprimée' })
     @ApiResponse({ status: 401, description: 'Non autorisé' })
     async delete(@Param('id') id: string) {
         return this.expensesService.delete(id);
     }
-
-
 }

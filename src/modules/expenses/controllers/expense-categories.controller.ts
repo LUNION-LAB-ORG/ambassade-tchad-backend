@@ -12,11 +12,10 @@ import { UpdateExpenseCategoryDto } from '../dto/update-expense-category.dto';
 @ApiTags('Catégories de Dépenses')
 @Controller('expense-categories')
 export class ExpenseCategoriesController {
-  constructor(private readonly expenseCategoriesService: ExpenseCategoriesService) {}
+  constructor(private readonly expenseCategoriesService: ExpenseCategoriesService) { }
 
   @Post()
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Créer une nouvelle catégorie de dépense' })
   @ApiResponse({ status: 201, description: 'Catégorie créée avec succès' })
   @ApiResponse({ status: 401, description: 'Non autorisé' })
@@ -54,8 +53,7 @@ export class ExpenseCategoriesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Mettre à jour une catégorie de dépense' })
   @ApiResponse({ status: 200, description: 'Catégorie mise à jour' })
   @ApiResponse({ status: 404, description: 'Catégorie non trouvée' })

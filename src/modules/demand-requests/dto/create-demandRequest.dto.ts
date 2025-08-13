@@ -24,7 +24,7 @@ export class CreateDemandRequestDto {
     description: 'Type de service demandé',
     example: ServiceType.VISA,
   })
-  @IsEnum(ServiceType, { message: 'Type de service invalide.' })
+  @IsEnum(ServiceType, { message: 'Type de service invalide backend.' })
   @IsNotEmpty({ message: 'Le type de service est requis.' })
   serviceType: ServiceType;
 

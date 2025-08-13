@@ -127,7 +127,10 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { visaDetails, ...demande } = dto;
-        const visaDetailsObject = JSON.parse(visaDetails ?? '');
+        const visaDetailsObject =
+        typeof visaDetails === 'string'
+            ? JSON.parse(visaDetails)
+            : visaDetails;
         if (!visaDetailsObject) {
             throw new BadRequestException('Les détails du visa sont requis.');
         }
@@ -161,7 +164,12 @@ export class DemandRequestsService {
                 amount,
                 contactPhoneNumber: dto.contactPhoneNumber,
                 visaDetails: {
-                    create: finalVisaDetails,
+                    create: {
+                        ...finalVisaDetails,
+                        personBirthDate: new Date(finalVisaDetails.personBirthDate),
+                        passportIssueDate: new Date(finalVisaDetails.passportIssueDate),
+                        passportExpirationDate: new Date(finalVisaDetails.passportExpirationDate),
+                    },
                 },
                 documents: {
                     create: documentsData,
@@ -185,7 +193,10 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { birthActDetails, ...demande } = dto;
-        const birthDetailsObject = JSON.parse(birthActDetails ?? '');
+        const birthDetailsObject =
+        typeof birthActDetails === 'string'
+            ? JSON.parse(birthActDetails)
+            : birthActDetails;
         if (!birthDetailsObject) {
             throw new BadRequestException(
                 "Les détails du l'extrait de naissance sont requis.",
@@ -211,7 +222,10 @@ export class DemandRequestsService {
                 amount,
                 contactPhoneNumber: dto.contactPhoneNumber,
                 birthActDetails: {
-                    create: finalbirthDetails,
+                    create: {
+                        ...finalbirthDetails,
+                        personBirthDate: new Date(finalbirthDetails.personBirthDate),
+                    },
                 },
                 documents: {
                     create: documentsData,
@@ -260,7 +274,10 @@ export class DemandRequestsService {
                 amount,
                 contactPhoneNumber: dto.contactPhoneNumber,
                 consularCardDetails: {
-                    create: finalconsularCardDetails,
+                    create: {
+                        ...finalconsularCardDetails,
+                        personBirthDate: new Date(finalconsularCardDetails.personBirthDate),
+                    },
                 },
                 documents: {
                     create: documentsData,
@@ -371,6 +388,8 @@ export class DemandRequestsService {
                 marriageCapacityActDetails: {
                     create: {
                         ...marriageCapacityActDetailsObject,
+                        husbandBirthDate: new Date(marriageCapacityActDetailsObject.husbandBirthDate),
+                        wifeBirthDate: new Date(marriageCapacityActDetailsObject.wifeBirthDate),
                     },
                 },
                 documents: {
@@ -396,14 +415,16 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { deathActDetails, ...demande } = dto;
+        const deathActDetailsObject =
+        typeof deathActDetails === 'string'
+            ? JSON.parse(deathActDetails)
+            : deathActDetails;
 
-        const deathActDetailsObject = JSON.parse(deathActDetails ?? '');
-
-        if (!deathActDetailsObject) {
-            throw new BadRequestException(
-                "Les détails de l'acte de décès sont requis.",
-            );
-        }
+    if (!deathActDetailsObject) {
+        throw new BadRequestException(
+            'Les détails de l\'acte de décès sont requis.',
+        );
+    }
 
         const prefix = getTicketPrefix(demande.serviceType);
         const ticketNumber = await generateTicketNumber(this.prisma, prefix);
@@ -421,6 +442,8 @@ export class DemandRequestsService {
                 deathActDetails: {
                     create: {
                         ...deathActDetailsObject,
+                        deceasedBirthDate: new Date(deathActDetailsObject.deceasedBirthDate),
+                        deceasedDeathDate: new Date(deathActDetailsObject.deceasedDeathDate),
                     },
                 },
                 documents: {
@@ -477,6 +500,14 @@ export class DemandRequestsService {
                 laissezPasserDetailsObject.accompaniers = JSON.parse(
                     laissezPasserDetailsObject.accompaniers,
                 );
+                if (Array.isArray(laissezPasserDetailsObject.accompaniers)) {
+                    laissezPasserDetailsObject.accompaniers = laissezPasserDetailsObject.accompaniers.map((accompagner: any) => {
+                        return {
+                            ...accompagner,
+                            birthDate: new Date(accompagner.birthDate),
+                        };
+                    });
+                }
             } catch (error) {
                 throw new BadRequestException(
                     'Le champ accompaniers doit être un tableau JSON valide.',
@@ -501,6 +532,7 @@ export class DemandRequestsService {
                 laissezPasserDetails: {
                     create: {
                         ...laissezPasserDetailsObject,
+                        personBirthDate: new Date(laissezPasserDetailsObject.personBirthDate),
                         justificationDocumentType:
                             laissezPasserDetailsObject.justificationDocumentType,
                         accompaniers: laissezPasserDetailsObject.accompanied
@@ -568,6 +600,7 @@ export class DemandRequestsService {
                 nationalityCertificateDetails: {
                     create: {
                         ...details,
+                        applicantBirthDate: new Date(details.applicantBirthDate),
                     },
                 },
                 documents: {

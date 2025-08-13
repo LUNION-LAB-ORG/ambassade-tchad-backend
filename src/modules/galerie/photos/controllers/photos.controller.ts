@@ -8,7 +8,6 @@ import {
   Query,
   Request,
   UseGuards,
-  Put,
   UseInterceptors,
   UploadedFiles,
   Patch,

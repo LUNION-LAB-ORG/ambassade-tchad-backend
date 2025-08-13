@@ -9,22 +9,22 @@ import {
 import {
     ServiceType,
     Gender,
-    
+
     BirthActRequestType,
-    
+
 } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 
 export class BirthActRequestDetailsDto {
 
-    @ApiProperty({
-    description: 'Type de service (fixé à EXTRAIT DE NAISSANCE)',
-    enum: ServiceType,
-    example: ServiceType.BIRTH_ACT_APPLICATION,
-  })
-  readonly serviceType?: "BIRTH_ACT_APPLICATION" = "BIRTH_ACT_APPLICATION";
-    
+    @ApiPropertyOptional({
+        description: 'Type de service (fixé à EXTRAIT DE NAISSANCE)',
+        enum: ServiceType,
+        example: ServiceType.BIRTH_ACT_APPLICATION,
+    })
+    readonly serviceType?: "BIRTH_ACT_APPLICATION" = "BIRTH_ACT_APPLICATION";
+
     @ApiProperty({
         description: "Prénom de la personne concernée par l'acte de naissance",
         example: "Anderson",
@@ -113,7 +113,7 @@ export class BirthActRequestDetailsDto {
     @IsNotEmpty({ message: 'Le type de demande est obligatoire.' })
     requestType: BirthActRequestType;
 
-   @IsEnum(Gender, { message: 'Le type de demande est invalide.' })
-   @IsOptional()
-   personGender?: Gender
+    @IsEnum(Gender, { message: 'Le type de demande est invalide.' })
+    @IsOptional()
+    personGender?: Gender
 }

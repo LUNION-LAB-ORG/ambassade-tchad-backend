@@ -33,17 +33,19 @@ import { GenerateConfigService } from 'src/common/services/generate-config.servi
 @ApiTags('Photos')
 @Controller('photos')
 export class PhotosController {
-  constructor(private readonly photosService: PhotosService) {}
+  constructor(
+    private readonly photosService: PhotosService,
+    private readonly generateConfigService: GenerateConfigService
+  ) {}
 
   @Post()
   @UseInterceptors(
     FilesInterceptor(
       'images',
       10,
-     GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
     )
   )
- 
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: CreatePhotosDto })
   @ApiOperation({ summary: 'Créer une ou plusieurs photos' })
@@ -57,22 +59,7 @@ export class PhotosController {
     @UploadedFiles() files: Express.Multer.File[],
     @Request() req
   ) {
-    const fileMap: Record<string, string> = {};
-    
-    files.forEach((file, i) => {
-      fileMap[`image_${i}`] = file.path;
-    });
-        
-    const compressedPaths = await GenerateConfigService.compressImages(
-      fileMap,
-      './uploads/photos',
-      { quality: 75, width: 1280, height: 720, fit: 'inside' },
-      true
-    );
-
-    dto.imageUrl = Object.values(compressedPaths);
-
-    return this.photosService.create(dto);
+    return this.photosService.create(dto, files);
   }
 
   @Get()
@@ -103,14 +90,25 @@ export class PhotosController {
   }
 
   @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor(
+      'images',
+      10,
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
+    )
+  )
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
   @ApiOperation({ summary: 'Mettre à jour une photo' })
   @ApiResponse({ status: 200, description: 'Photo mise à jour avec succès.' })
   @ApiResponse({ status: 400, description: 'Requête invalide.' })
   @ApiResponse({ status: 404, description: 'Photo non trouvée.' })
-  update(@Param('id') id: string, @Body() dto: CreatePhotosDto) {
-    return this.photosService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: CreatePhotosDto,
+    @UploadedFiles() files: Express.Multer.File[]
+  ) {
+    return this.photosService.update(id, dto, files);
   }
 
   @Delete(':id')
@@ -120,7 +118,6 @@ export class PhotosController {
   @ApiResponse({ status: 200, description: 'Photo supprimée avec succès.' })
   @ApiResponse({ status: 404, description: 'Photo non trouvée.' })
   async remove(@Param('id') id: string, @Request() req) {
-    await this.photosService.remove(id, req.user.id);
-    return { message: `La photo avec l'id ${id} supprimée avec succès.` };
+    return this.photosService.remove(id);
   }
 }

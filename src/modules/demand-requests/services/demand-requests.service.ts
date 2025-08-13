@@ -127,7 +127,10 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { visaDetails, ...demande } = dto;
-        const visaDetailsObject = JSON.parse(visaDetails ?? '');
+        const visaDetailsObject =
+        typeof visaDetails === 'string'
+            ? JSON.parse(visaDetails)
+            : visaDetails;
         if (!visaDetailsObject) {
             throw new BadRequestException('Les détails du visa sont requis.');
         }
@@ -190,7 +193,10 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { birthActDetails, ...demande } = dto;
-        const birthDetailsObject = JSON.parse(birthActDetails ?? '');
+        const birthDetailsObject =
+        typeof birthActDetails === 'string'
+            ? JSON.parse(birthActDetails)
+            : birthActDetails;
         if (!birthDetailsObject) {
             throw new BadRequestException(
                 "Les détails du l'extrait de naissance sont requis.",
@@ -243,7 +249,16 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { consularCardDetails, ...demande } = dto;
-        const consularCardDetailsObject = JSON.parse(consularCardDetails ?? '');
+        // const consularCardDetailsObject = JSON.parse(consularCardDetails ?? '');
+
+      const consularCardDetailsObject =
+        typeof consularCardDetails === 'string'
+          ? JSON.parse(consularCardDetails)
+          : consularCardDetails;
+      if (!consularCardDetailsObject) {
+        throw new BadRequestException('Les détails du visa sont requis.');
+      }
+
 
         if (!consularCardDetailsObject) {
             throw new BadRequestException('Les détails du visa sont requis.');
@@ -409,14 +424,16 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { deathActDetails, ...demande } = dto;
+        const deathActDetailsObject =
+        typeof deathActDetails === 'string'
+            ? JSON.parse(deathActDetails)
+            : deathActDetails;
 
-        const deathActDetailsObject = JSON.parse(deathActDetails ?? '');
-
-        if (!deathActDetailsObject) {
-            throw new BadRequestException(
-                "Les détails de l'acte de décès sont requis.",
-            );
-        }
+    if (!deathActDetailsObject) {
+        throw new BadRequestException(
+            'Les détails de l\'acte de décès sont requis.',
+        );
+    }
 
         const prefix = getTicketPrefix(demande.serviceType);
         const ticketNumber = await generateTicketNumber(this.prisma, prefix);

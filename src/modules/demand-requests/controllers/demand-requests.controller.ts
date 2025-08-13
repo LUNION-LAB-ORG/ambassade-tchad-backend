@@ -90,7 +90,7 @@ export class DemandRequestsController {
         type: CreateDemandRequestDto,
     })
     @UseInterceptors(
-        AnyFilesInterceptor(GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
+        FilesInterceptor('documents', 20, GenerateConfigService.generateConfigMultipleDocumentsUpload('./uploads/documents')),
     )
     @UseGuards(JwtAuthGuard)
     async createAdmin(

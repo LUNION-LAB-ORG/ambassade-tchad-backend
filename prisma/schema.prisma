@@ -161,7 +161,7 @@ model User {
 
   // Relations pour le CMS (principalement pour le PERSONNEL)
   news                News[]               @relation("AuthorNews")
-  events              Evenement[]              @relation("AuthorEvent")
+  events              Evenement[]          @relation("AuthorEvent")
   expenses            Expense[]            @relation("ExpenseRecorder")
   services            Service[]            @relation("ServiceUpdater")
   settings            Setting[]            @relation("SettingUpdater")
@@ -373,6 +373,7 @@ model BirthActRequestDetails {
   personBirthDate   DateTime
   personBirthPlace  String
   personNationality String
+  personGender      Gender
   personDomicile    String?
 
   fatherFullName String
@@ -633,27 +634,27 @@ model Video {
 }
 
 model ExpenseCategory {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id          String    @id @default(uuid())
+  name        String    @unique
   description String?
-  isActive  Boolean  @default(true)
-  expenses  Expense[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // Dépenses
 model Expense {
   id String @id @default(uuid())
 
-  amount      Float // Montant de la dépense
-  description String? // Description de la dépense (Description)
- // Relation avec la catégorie
-  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
-  categoryId  String
+  amount       Float // Montant de la dépense
+  description  String? // Description de la dépense (Description)
+  // Relation avec la catégorie
+  category     ExpenseCategory @relation(fields: [categoryId], references: [id])
+  categoryId   String
   // Qui a exécuté/enregistré cette dépense (Exécuté par)
   recordedById String
-  recordedBy   User   @relation("ExpenseRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+  recordedBy   User            @relation("ExpenseRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
 
   expenseDate DateTime // Date de la dépense (Date)
 

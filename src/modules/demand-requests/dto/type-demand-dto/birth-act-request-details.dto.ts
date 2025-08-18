@@ -9,9 +9,7 @@ import {
 import {
     ServiceType,
     Gender,
-
     BirthActRequestType,
-
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -113,7 +111,12 @@ export class BirthActRequestDetailsDto {
     @IsNotEmpty({ message: 'Le type de demande est obligatoire.' })
     requestType: BirthActRequestType;
 
-    @IsEnum(Gender, { message: 'Le type de demande est invalide.' })
+    @ApiProperty({
+        description: "Genre de la personne concernée",
+        example: "Masculin",
+        enum: Gender,
+    })
+    @IsEnum(Gender, { message: 'Le genre est invalide.' })
     @IsOptional()
-    personGender?: Gender
+    personGender?: Gender;
 }

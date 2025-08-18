@@ -27,7 +27,7 @@ import { PhotosModule } from './modules/galerie/photos/photos.module';
 import { DemandRequestsModule } from './modules/demand-requests/demand-requests.module';
 import { ServiceConsulaireModule } from './modules/services_consulaire/service_consulaire.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
-
+import { FinancialReportModule } from './modules/financial-report/financial-report.module';
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -52,14 +52,15 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
     TwilioModule,
     EmailModule,
     NewsModule,
-   EventsModule,
-   PhotosModule,
-   VideosModule,
-   DemandRequestsModule,
-   ExpensesModule,
-   ServiceConsulaireModule,   
+    EventsModule,
+    PhotosModule,
+    VideosModule,
+    DemandRequestsModule,
+    ExpensesModule,
+    ServiceConsulaireModule,
+    FinancialReportModule,
   ],
- 
+
 })
 
 export class AppModule { }

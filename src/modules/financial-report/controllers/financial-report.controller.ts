@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { FinancialReportService } from '../services/financial-report.service';
 import { ApiTags, ApiQuery, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GetReportDto } from '../dtos/get-report.dto';
-import { FinancialReportResponseDto } from '../dtos/report-response.dto';
+import { FinancialReportResponseDto } from '../types/report-response.type';
 
 @ApiTags('Rapports Financiers')
 @Controller('financial-reports')

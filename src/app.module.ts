@@ -19,6 +19,9 @@ import { DemandRequestsModule } from './modules/demand-requests/demand-requests.
 import { ServiceConsulaireModule } from './modules/services_consulaire/service_consulaire.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { FinancialReportModule } from './modules/financial-report/financial-report.module';
+import { StatistiqueModule } from './modules/statistique/statistique.module';
+import { UsersModule } from './modules/users/users.module';
+
 @Module({
   imports: [
     JsonWebTokenModule,
@@ -28,6 +31,7 @@ import { FinancialReportModule } from './modules/financial-report/financial-repo
     DatabaseModule,
     CommonModule,
     AuthModule,
+    UsersModule,
     NotificationsModule,
     KkiapayModule,
     SocketIoModule,
@@ -41,6 +45,7 @@ import { FinancialReportModule } from './modules/financial-report/financial-repo
     ExpensesModule,
     ServiceConsulaireModule,
     FinancialReportModule,
+    StatistiqueModule
   ],
 
 })

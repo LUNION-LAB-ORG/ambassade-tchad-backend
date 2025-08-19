@@ -1,11 +1,11 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { ServiceType } from '@prisma/client';
+import { Expense, ExpenseCategory, Payment, ServiceType } from '@prisma/client';
 import {
     Transaction,
     RevenueByService,
     ExpenseByCategory,
     MonthlyData,
-} from '../dtos/types.dto';
+} from '../types/types.type';
 import { GetReportDto } from '../dtos/get-report.dto';
 import { PrismaService } from 'src/database/services/prisma.service';
 
@@ -26,11 +26,22 @@ export class FinancialReportService {
             include: { category: true },
         });
 
+        // Calcul des revenus
         const totalRevenue = this.calculateTotalRevenue(payments);
+
+        // Calcul des dépenses
         const totalExpenses = this.calculateTotalExpenses(expenses);
+
+        // Calcul des transactions
         const transactions = await this.getTransactions(payments, expenses);
+
+        // Calcul des revenus par service
         const revenueByService = await this.getRevenueByService(payments);
+
+        // Calcul des dépenses par catégorie
         const expensesByCategory = this.getExpensesByCategory(expenses, totalExpenses);
+
+        // Calcul des données mensuelles
         const monthlyData = await this.getMonthlyData(year);
 
         return {
@@ -61,12 +72,14 @@ export class FinancialReportService {
         return result._sum.amount || 0;
     }
 
-    async getRevenueByService(payments: any[]): Promise<RevenueByService[]> {
+    async getRevenueByService(payments: Payment[]): Promise<RevenueByService[]> {
         const serviceIds = [...new Set(payments.map(p => p.requestId))];
+
         const requests = await this.prisma.request.findMany({
             where: { id: { in: serviceIds } },
             select: { id: true, serviceType: true },
         });
+
         const serviceMap = new Map<string, ServiceType>(requests.map(req => [req.id, req.serviceType]));
 
         const aggregation = payments.reduce((acc, p) => {
@@ -84,7 +97,7 @@ export class FinancialReportService {
         return Object.values(aggregation);
     }
 
-    getExpensesByCategory(expenses: any[], totalExpenses: number): ExpenseByCategory[] {
+    getExpensesByCategory(expenses: (Expense & { category: ExpenseCategory })[], totalExpenses: number): ExpenseByCategory[] {
         const aggregation: Record<string, ExpenseByCategory> = expenses.reduce((acc: Record<string, ExpenseByCategory>, expense) => {
             const categoryName = expense.category.name;
             if (!acc[categoryName]) {
@@ -182,17 +195,17 @@ export class FinancialReportService {
             startDate = new Date(Date.UTC(year, 0, 1));
             endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
         } else if (period === 'quarter') {
-            if (quarter === undefined) throw new BadRequestException('Quarter is required for quarter period.');
+            if (quarter === undefined) throw new BadRequestException('Le trimestre est requis pour la période trimestrielle.');
             const startMonth = (quarter - 1) * 3;
             const endMonth = startMonth + 2;
             startDate = new Date(Date.UTC(year, startMonth, 1));
             endDate = new Date(Date.UTC(year, endMonth + 1, 0, 23, 59, 59, 999));
         } else if (period === 'month') {
-            if (month === undefined) throw new BadRequestException('Month is required for month period.');
+            if (month === undefined) throw new BadRequestException('Le mois est requis pour la période mensuelle.');
             startDate = new Date(Date.UTC(year, month - 1, 1));
             endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
         } else {
-            throw new BadRequestException('Invalid period specified.');
+            throw new BadRequestException('Période invalide.');
         }
 
         return { startDate, endDate };

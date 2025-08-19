@@ -4,7 +4,7 @@ import {
     RevenueByService,
     ExpenseByCategory,
     MonthlyData,
-} from './types.dto';
+} from './types.type';
 
 export class FinancialReportResponseDto {
     @ApiProperty({ description: 'Total des revenus pour la période sélectionnée.' })

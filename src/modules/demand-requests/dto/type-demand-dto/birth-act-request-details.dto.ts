@@ -9,9 +9,7 @@ import {
 import {
     ServiceType,
     Gender,
-
     BirthActRequestType,
-
 } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

@@ -249,10 +249,17 @@ export class DemandRequestsService {
         files: Express.Multer.File[],
     ) {
         const { consularCardDetails, ...demande } = dto;
-        const consularCardDetailsObject =
+        // const consularCardDetailsObject = JSON.parse(consularCardDetails ?? '');
+
+      const consularCardDetailsObject =
         typeof consularCardDetails === 'string'
-            ? JSON.parse(consularCardDetails)
-            : consularCardDetails;
+          ? JSON.parse(consularCardDetails)
+          : consularCardDetails;
+      if (!consularCardDetailsObject) {
+        throw new BadRequestException('Les détails du visa sont requis.');
+      }
+
+
         if (!consularCardDetailsObject) {
             throw new BadRequestException('Les détails du visa sont requis.');
         }

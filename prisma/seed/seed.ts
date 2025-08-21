@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { userSeed } from './user.seed';
 import { serviceSeed } from './service.seed';
 import { categoriesDepensesSeed } from './categorie-depense.seed';
+import { videosSeed } from './videos.seed';
 
 const prisma = new PrismaClient({ log: ['query', 'info', 'warn', 'error'] });
 
@@ -29,6 +30,12 @@ async function main() {
   });
 
   console.log('--- Processus de seeding global terminé avec succès ---');
+  await videosSeed().catch((e) => {
+    console.error('Erreur lors du seeding des vidéos:', e);
+    process.exit(1);
+  });
+
+  console.log('--- Processus de seeding global VIDEO terminé avec succès ---');
 }
 
 // Lancement du processus de seeding

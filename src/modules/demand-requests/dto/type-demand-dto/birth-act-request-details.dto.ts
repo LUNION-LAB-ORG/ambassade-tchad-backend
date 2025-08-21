@@ -113,7 +113,7 @@ export class BirthActRequestDetailsDto {
     @IsNotEmpty({ message: 'Le type de demande est obligatoire.' })
     requestType: BirthActRequestType;
 
-    @IsEnum(Gender, { message: 'Le type de demande est invalide.' })
-    @IsOptional()
-    personGender?: Gender
+    // @IsEnum(Gender, { message: 'Le type de demande est invalide.' })
+    // @IsOptional()
+    // personGender?: Gender
 }

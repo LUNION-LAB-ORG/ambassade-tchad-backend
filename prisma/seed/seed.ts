@@ -2,7 +2,6 @@ import { PrismaClient } from '@prisma/client';
 import { userSeed } from './user.seed';
 import { serviceSeed } from './service.seed';
 import { categoriesDepensesSeed } from './categorie-depense.seed';
-import { evenementsSeed } from './evenement.seed';
 
 const prisma = new PrismaClient({ log: ['query', 'info', 'warn', 'error'] });
 
@@ -30,13 +29,6 @@ async function main() {
   });
 
   console.log('--- Processus de seeding global terminé avec succès ---');
-
-  await evenementsSeed().catch((e) => {
-    console.error('Erreur lors du seeding des événements:', e);
-    process.exit(1);
-  });
-
-  console.log('--- Processus de seeding des événements terminé avec succès ---');
 }
 
 // Lancement du processus de seeding

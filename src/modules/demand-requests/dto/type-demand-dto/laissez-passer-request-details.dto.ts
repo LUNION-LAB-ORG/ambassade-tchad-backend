@@ -90,8 +90,8 @@ export class LaissezPasserRequestDetailsDto {
   @MaxLength(255)
   travelReason?: string;
 
-  @ApiProperty({ description: "Accompagné ou non" })
-  @IsBoolean()
+  @ApiProperty({ description: "Accompagné est un booléen"})
+  @IsBoolean({ message: 'Le champ "accompanied" doit être un booléen.' })
   @Type(() => Boolean)
   accompanied: boolean;
 

@@ -311,9 +311,10 @@ export class DemandRequestsService {
     ) {
         const { powerOfAttorneyDetails, ...demande } = dto;
 
-        const powerOfAttorneyDetailsObject = JSON.parse(
-            powerOfAttorneyDetails ?? '',
-        );
+        const powerOfAttorneyDetailsObject =
+        typeof powerOfAttorneyDetails === 'string'
+            ? JSON.parse(powerOfAttorneyDetails)
+            : powerOfAttorneyDetails;
 
         if (!powerOfAttorneyDetailsObject) {
             throw new BadRequestException(
@@ -370,9 +371,10 @@ export class DemandRequestsService {
     ) {
         const { marriageCapacityActDetails, ...demande } = dto;
 
-        const marriageCapacityActDetailsObject = JSON.parse(
-            marriageCapacityActDetails ?? '',
-        );
+        const marriageCapacityActDetailsObject =
+        typeof marriageCapacityActDetails === 'string'
+            ? JSON.parse(marriageCapacityActDetails)
+            : marriageCapacityActDetails;
 
         if (!marriageCapacityActDetailsObject) {
             throw new BadRequestException(
@@ -541,6 +543,7 @@ export class DemandRequestsService {
                 laissezPasserDetails: {
                     create: {
                         ...laissezPasserDetailsObject,
+                        accompanied: Boolean(laissezPasserDetailsObject.accompanied),
                         personBirthDate: new Date(laissezPasserDetailsObject.personBirthDate),
                         justificationDocumentType:
                             laissezPasserDetailsObject.justificationDocumentType,

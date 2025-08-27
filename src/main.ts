@@ -29,7 +29,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['https://ambassade-tchad-dashboard.vercel.app', 'http://localhost:3020', 'http://localhost:3001', 'http://localhost:3000', 'http://localhost:3002'],
+    origin: ['https://ambassade-tchad-backoffice.vercel.app', 'http://localhost:3001', 'http://localhost:3000'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -56,7 +56,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, documentFactory);
 
   // Lancer le serveur
-  const port = process.env.PORT ?? 8081;
+  const port = process.env.PORT ?? 3022;
   await app.listen(port);
 
   // 👇 Ajoute ceci pour afficher l’URL dans la console

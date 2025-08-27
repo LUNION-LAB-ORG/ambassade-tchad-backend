@@ -7,10 +7,10 @@ import {
     ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UserType, Role, UserStatus } from '@prisma/client'; // Import de nos Enums
+import { UserType, Role, UserStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/services/prisma.service';
-import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service'; // Assurez-vous que ce service est correct
-import { ConnectedUser } from '../interfaces/app.gateway.interface'; // Assurez-vous du chemin correct
+import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
+import { ConnectedUser } from '../interfaces/app.gateway.interface';
 
 @WebSocketGateway({
     cors: { origin: '*' },

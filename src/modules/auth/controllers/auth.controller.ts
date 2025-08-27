@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginDto } from '../dto/login.dto';
-
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { JwtRefreshAuthGuard } from '../guards/jwt-refresh-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -25,7 +24,7 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { LoginSuccessResponse /*, PreLoginResponse */ } from '../interfaces/auth.interface';
+import { LoginSuccessResponse } from '../interfaces/auth.interface';
 import { Request } from 'express';
 import { User } from '@prisma/client';
 import { RegisterClientDto } from '../dto/register-demandeur.dto';
@@ -60,16 +59,6 @@ export class AuthController {
     return this.authService.signIn(loginDto);
   }
 
-  // ❌ OTP désactivé — Endpoint supprimé
-  // @Post('complete-login')
-  // @HttpCode(HttpStatus.OK)
-  // @ApiOperation({ summary: 'Étape 2 de la connexion: Finalise la connexion avec un code OTP' })
-  // @ApiBody({ type: CompleteOtpLoginDto })
-  // @ApiResponse({ status: HttpStatus.OK, description: 'Connexion OTP réussie' })
-  // @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'OTP invalide ou expiré' })
-  // async completeLogin(@Body() completeOtpLoginDto: CompleteOtpLoginDto): Promise<LoginSuccessResponse> {
-  //   return this.authService.completeLogin(completeOtpLoginDto);
-  // }
 
   @Post('register-client')
   @HttpCode(HttpStatus.OK)
@@ -86,27 +75,6 @@ export class AuthController {
   registerClient(@Body() registerClientDto: RegisterClientDto): Promise<Omit<User, 'password'>> {
     return this.authService.registerClient(registerClientDto);
   }
-
-  // ❌ OTP désactivé — Endpoint supprimé
-  // @Post('request-password-reset-otp')
-  // @HttpCode(HttpStatus.OK)
-  // @ApiOperation({
-  //   summary: 'Demande un code OTP pour la réinitialisation du mot de passe',
-  // })
-  // @ApiBody({ type: RequestPasswordResetOtpDto })
-  // @ApiResponse({
-  //   status: HttpStatus.OK,
-  //   description: 'Un code OTP a été envoyé à votre numéro de téléphone.',
-  // })
-  // @ApiResponse({
-  //   status: HttpStatus.UNAUTHORIZED,
-  //   description: 'Utilisateur non trouvé',
-  // })
-  // async requestPasswordResetOtp(
-  //   @Body() requestPasswordResetOtpDto: RequestPasswordResetOtpDto,
-  // ): Promise<PreLoginResponse> {
-  //   return this.authService.requestPasswordResetOtp(requestPasswordResetOtpDto);
-  // }
 
   /**
    * Endpoint pour réinitialiser le mot de passe sans OTP.
@@ -272,7 +240,5 @@ export class AuthController {
 
     return { message: 'Mot de passe changé avec succès' };
   }
-
-
 
 }

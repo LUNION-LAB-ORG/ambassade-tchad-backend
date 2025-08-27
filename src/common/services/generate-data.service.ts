@@ -48,9 +48,9 @@ export class GenerateDataService {
         return GenerateDataService.generateCipher(name);
     }
 
-    static async generateImageName(name: string): Promise<string> {
+    static async generateImageName(): Promise<string> {
 
-        return "image_" + name + (new Date().getTime()) + Math.random() * 1000;
+        return "image_" + (new Date().getTime());
 
     }
 

@@ -14,6 +14,7 @@ export class QueryEventsDto {
 
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   published?: boolean;
 
   @IsOptional()

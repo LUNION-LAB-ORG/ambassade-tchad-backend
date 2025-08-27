@@ -42,7 +42,7 @@ export class NewsController {
     FilesInterceptor(
       'images',
       10,
-      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos'),
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/news'),
     ),
   )
   @UseGuards(JwtAuthGuard, UserRolesGuard)
@@ -108,7 +108,7 @@ export class NewsController {
     FilesInterceptor(
       'images',
       10,
-      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos'),
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/news'),
     ),
   )
   async update(

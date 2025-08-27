@@ -12,8 +12,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginDto } from '../dto/login.dto';
-// import { CompleteOtpLoginDto } from '../dto/complete-otp-login.dto'; // ❌ OTP désactivé
-// import { RequestPasswordResetOtpDto } from '../dto/request-password-reset-otp.dto'; // ❌ OTP désactivé
+
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { JwtRefreshAuthGuard } from '../guards/jwt-refresh-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';

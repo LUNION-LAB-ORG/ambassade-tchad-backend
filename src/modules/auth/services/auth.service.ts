@@ -11,10 +11,10 @@ import { UserType, UserStatus, User } from '@prisma/client';
 import { PrismaService } from 'src/database/services/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { JsonWebTokenService } from 'src/json-web-token/json-web-token.service';
-import { OtpService } from 'src/otp/otp.service'; 
+import { OtpService } from 'src/otp/otp.service';
 import { LoginDto } from '../dto/login.dto';
 import { LoginSuccessResponse /*, PreLoginResponse */ } from '../interfaces/auth.interface';
-import { TwilioService } from 'src/twilio/services/twilio.service'; 
+import { TwilioService } from 'src/twilio/services/twilio.service';
 import { RegisterClientDto } from '../dto/register-demandeur.dto';
 
 @Injectable()
@@ -22,8 +22,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jsonWebTokenService: JsonWebTokenService,
-    private readonly otpService: OtpService, 
-    private readonly twilioService: TwilioService, 
+    private readonly otpService: OtpService,
+    private readonly twilioService: TwilioService,
   ) { }
 
   async registerClient(registerClientDto: RegisterClientDto): Promise<Omit<User, 'password'>> {
@@ -62,7 +62,7 @@ export class AuthService {
     const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: email.toLowerCase(), type: UserType.PERSONNEL },
     });
 
     if (!user) {

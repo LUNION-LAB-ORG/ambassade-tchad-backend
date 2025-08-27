@@ -18,7 +18,7 @@ import { CreateEventsDto } from '../dto/create-events.dto';
 import { UpdateEventsDto } from '../dto/update-events.dto';
 import { UserRolesGuard } from 'src/modules/users/guards/user-roles.guard';
 import { UserRoles } from 'src/modules/users/decorators/user-roles.decorator';
-import { Role, User } from '@prisma/client';
+import { Role } from '@prisma/client';
 import {
   ApiResponse,
   ApiTags,
@@ -36,29 +36,50 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 export class EventsController {
   constructor(private readonly eventsService: EventsService) { }
 
-@Post()
-@UseInterceptors(
-  FilesInterceptor(
-    'images',
-    10,
-    GenerateConfigService.generateConfigMultipleImageUpload('./uploads/photos')
+  @Post()
+  @UseInterceptors(
+    FilesInterceptor(
+      'images',
+      10,
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/events')
+    )
   )
-)
-@UseGuards(JwtAuthGuard, UserRolesGuard)
-@UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
-@ApiConsumes('multipart/form-data')
-@ApiBody({ type: CreateEventsDto })
-@ApiOperation({ summary: 'Créer un nouvel événement avec images compressées' })
-@ApiResponse({ status: 201, description: 'Événement créé avec succès.' })
-@ApiResponse({ status: 400, description: 'Requête invalide.' })
-@ApiResponse({ status: 401, description: 'Non autorisé' })
-async create(
-  @Body() dto: CreateEventsDto,
-  @UploadedFiles() files: Express.Multer.File[] = [], // Valeur par défaut tableau vide
-  @Request() req
-) {
-  return this.eventsService.create(dto, req.user.id, files);
-}
+  @UseGuards(JwtAuthGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: CreateEventsDto })
+  @ApiOperation({ summary: 'Créer un nouvel événement avec images compressées' })
+  @ApiResponse({ status: 201, description: 'Événement créé avec succès.' })
+  @ApiResponse({ status: 400, description: 'Requête invalide.' })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  async create(
+    @Body() dto: CreateEventsDto,
+    @UploadedFiles() files: Express.Multer.File[] = [],
+    @Request() req
+  ) {
+    return this.eventsService.create(dto, req.user.id, files);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor(
+      'images',
+      10,
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/events')
+    )
+  )
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Mettre à jour un événement' })
+  @ApiResponse({ status: 200, description: 'Événement mis à jour avec succès.' })
+  @ApiResponse({ status: 404, description: 'Événement non trouvé.' })
+  @ApiResponse({ status: 400, description: 'Mise à jour invalide.' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEventsDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req,
+  ) {
+    return this.eventsService.update(id, dto, req.user.id, files);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Lister les événements avec filtres' })
@@ -89,26 +110,6 @@ async create(
   @ApiResponse({ status: 404, description: 'Événement non trouvé.' })
   findOne(@Param('id') id: string) {
     return this.eventsService.findOne(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
-  @ApiOperation({ summary: 'Mettre à jour un événement' })
-  @ApiResponse({ status: 200, description: 'Événement mis à jour avec succès.' })
-  @ApiResponse({ status: 404, description: 'Événement non trouvé.' })
-  @ApiResponse({ status: 400, description: 'Mise à jour invalide.' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateEventsDto,
-    @UploadedFiles() files: Express.Multer.File[],
-    @Request() req,
-  ) {
-    const updatedEvent = await this.eventsService.update(id, dto, req.user.id, files);
-    return {
-      message: 'Événement mis à jour avec succès.',
-      data: updatedEvent,
-    };
   }
 
   @Delete(':id')

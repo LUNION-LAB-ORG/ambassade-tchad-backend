@@ -57,12 +57,12 @@ export class AuthService {
 
     return restUser;
   }
-
+// Connexion pour les utilisateurs (personnel et clients)
   async signIn(loginDto: LoginDto): Promise<LoginSuccessResponse> {
     const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase(), type: UserType.PERSONNEL },
+      where: { email: email.toLowerCase()},
     });
 
     if (!user) {

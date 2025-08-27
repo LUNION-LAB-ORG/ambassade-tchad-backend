@@ -29,7 +29,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['https://ambassade-tchad-backoffice.vercel.app', 'http://localhost:3001', 'http://localhost:3000'],
+    origin: ['http://localhost:3001', 'http://localhost:3000'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

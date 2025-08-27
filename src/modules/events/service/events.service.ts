@@ -14,14 +14,13 @@ export class EventsService {
   async create(
     dto: CreateEventsDto,
     authorId: string,
-    files: Express.Multer.File[] = [] // Valeur par défaut tableau vide
+    files: Express.Multer.File[] = []
   ) {
-    // 1. Traitement des fichiers (si existants)
+
     const imageUrls = files.length > 0
       ? await this.processUploadedFiles(files)
       : [];
 
-    // 2. Création de l'événement
     return this.prisma.evenement.create({
       data: {
         ...dto,
@@ -49,7 +48,7 @@ export class EventsService {
 
     const compressedPaths = await GenerateConfigService.compressImages(
       fileMap,
-      './uploads/photos',
+      './uploads/events',
       { quality: 75, width: 1280, height: 720, fit: 'inside' },
       true
     );
@@ -148,7 +147,7 @@ export class EventsService {
       imageUrls = [...imageUrls, ...eventImageUrls]; // Ajouter aux anciennes
     }
 
-    const events_new= this.prisma.evenement.update({
+    const events_new = this.prisma.evenement.update({
       where: { id },
       data: {
         ...UpdateEventsDto,

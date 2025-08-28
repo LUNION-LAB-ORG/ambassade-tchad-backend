@@ -92,6 +92,13 @@ export class NewsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(
+    FilesInterceptor(
+      'images',
+      10,
+      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/news'),
+    ),
+  )
   @UseGuards(JwtAuthGuard, UserRolesGuard)
   @UserRoles(Role.ADMIN, Role.CONSUL)
   @ApiOperation({ summary: 'Mettre à jour une actualité' })
@@ -104,13 +111,6 @@ export class NewsController {
   @ApiResponse({ status: 400, description: 'Requête invalide.' })
   @ApiResponse({ status: 401, description: 'Non autorisé.' })
   @ApiBody({ type: UpdateNewsDto })
-  @UseInterceptors(
-    FilesInterceptor(
-      'images',
-      10,
-      GenerateConfigService.generateConfigMultipleImageUpload('./uploads/news'),
-    ),
-  )
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateNewsDto,

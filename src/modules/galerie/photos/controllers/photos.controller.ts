@@ -35,7 +35,6 @@ import { GenerateConfigService } from 'src/common/services/generate-config.servi
 export class PhotosController {
   constructor(
     private readonly photosService: PhotosService,
-    private readonly generateConfigService: GenerateConfigService
   ) {}
 
   @Post()

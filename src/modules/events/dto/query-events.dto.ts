@@ -5,7 +5,7 @@ import { IsInt, Min, Max } from 'class-validator';
 
 export class QueryEventsDto {
   @IsOptional()
-  @IsString()  
+  @IsString()
   title?: string;
 
   @IsOptional()
@@ -23,7 +23,7 @@ export class QueryEventsDto {
 
   @IsOptional()
   @IsDateString()
-  eventDate:string;
+  eventDate: string;
 
   @IsOptional()
   @IsDateString()

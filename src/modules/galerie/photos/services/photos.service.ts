@@ -4,24 +4,25 @@ import { CreatePhotosDto } from '../dto/create-photos.dto';
 import { Photo, Prisma } from '@prisma/client';
 import { QueryPhotoDto } from '../dto/query-photo.dto';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
+import { processUploadedFiles } from 'src/common/utils/processUploadedFiles';
+import { deleteFilesFromSystem } from 'src/common/utils/deleteFilesFromSystem';
 
 @Injectable()
 export class PhotosService {
-  constructor(private prisma: PrismaService) {}
-
-  async processImages(files: Express.Multer.File[]): Promise<string[]> {
-    return files.map(file => file.path);
-  }
+  constructor(private prisma: PrismaService) { }
 
   async create(createPhotosDto: CreatePhotosDto, files?: Express.Multer.File[]) {
     const { title, description } = createPhotosDto;
 
     let imageUrls: string[] = [];
+
     if (files && files.length > 0) {
-      imageUrls = await this.processImages(files);
+      // Utiliser la fonction utilitaire pour traiter les fichiers
+      imageUrls = await processUploadedFiles(files, './uploads/photos');
     } else if (createPhotosDto.imageUrl) {
-      imageUrls = Array.isArray(createPhotosDto.imageUrl) 
-        ? createPhotosDto.imageUrl 
+      // Si pas de fichiers mais des URLs fournies
+      imageUrls = Array.isArray(createPhotosDto.imageUrl)
+        ? createPhotosDto.imageUrl
         : [createPhotosDto.imageUrl];
     }
 
@@ -39,14 +40,29 @@ export class PhotosService {
     const limit = filters.limit ?? 10;
     const skip = limit * (page - 1);
     const where: Prisma.PhotoWhereInput = {};
-    
-    if (filters.title) { where.title = { contains: filters.title, mode: 'insensitive' }; }
-    if (filters.authorId) { where.id = filters.authorId; }
-    if (filters.toDate) { where.createdAt = { lte: new Date(filters.toDate) }; }
-    if (filters.fromDate) { where.createdAt = { gte: new Date(filters.fromDate) }; }
 
-    const [total_photo, all_photo] = await Promise.all([ 
-      this.prisma.photo.count({ where }), 
+    if (filters.title) {
+      where.title = { contains: filters.title, mode: 'insensitive' };
+    }
+    if (filters.authorId) {
+      where.id = filters.authorId;
+    }
+    if (filters.fromDate && filters.toDate) {
+      where.createdAt = {
+        gte: new Date(filters.fromDate),
+        lte: new Date(filters.toDate)
+      };
+    } else {
+      if (filters.fromDate) {
+        where.createdAt = { gte: new Date(filters.fromDate) };
+      }
+      if (filters.toDate) {
+        where.createdAt = { lte: new Date(filters.toDate) };
+      }
+    }
+
+    const [total_photo, all_photo] = await Promise.all([
+      this.prisma.photo.count({ where }),
       this.prisma.photo.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -85,21 +101,40 @@ export class PhotosService {
   }
 
   async update(
-    id: string, 
-    updatePhotosDto: CreatePhotosDto, 
+    id: string,
+    updatePhotosDto: CreatePhotosDto,
     files?: Express.Multer.File[]
   ) {
     const { title, description } = updatePhotosDto;
 
-    await this.findOne(id); // Vérifie d'abord que la photo existe
+    const photo = await this.findOne(id); // Vérifie que la photo existe
 
-    let imageUrls: string[] = [];
+    // Récupérer les anciennes URLs d'images
+    const oldImageUrls = photo.imageUrl || [];
+    let newImageUrls: string[] = [];
+
+    // Si de nouveaux fichiers sont fournis, on remplace TOUTES les images
     if (files && files.length > 0) {
-      imageUrls = await this.processImages(files);
+      console.log(`Mise à jour photo avec ${files.length} nouveaux fichiers`);
+
+      // Supprimer les anciens fichiers du système de fichiers
+      if (oldImageUrls.length > 0) {
+        await deleteFilesFromSystem(oldImageUrls);
+      }
+
+      // Traiter les nouveaux fichiers
+      newImageUrls = await processUploadedFiles(files, './uploads/photos');
     } else if (updatePhotosDto.imageUrl) {
-      imageUrls = Array.isArray(updatePhotosDto.imageUrl) 
-        ? updatePhotosDto.imageUrl 
+      // Si pas de fichiers mais des URLs fournies, remplacer aussi
+      if (oldImageUrls.length > 0) {
+        await deleteFilesFromSystem(oldImageUrls);
+      }
+      newImageUrls = Array.isArray(updatePhotosDto.imageUrl)
+        ? updatePhotosDto.imageUrl
         : [updatePhotosDto.imageUrl];
+    } else {
+      // Si aucun nouveau fichier ni URL, garder les anciens
+      newImageUrls = oldImageUrls;
     }
 
     const updatedPhoto = await this.prisma.photo.update({
@@ -107,7 +142,7 @@ export class PhotosService {
       data: {
         title,
         description,
-        imageUrl: imageUrls,
+        imageUrl: newImageUrls,
       },
     });
 
@@ -118,7 +153,12 @@ export class PhotosService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const photo = await this.findOne(id);
+
+    // Supprimer les fichiers associés du système de fichiers
+    if (photo.imageUrl && photo.imageUrl.length > 0) {
+      await deleteFilesFromSystem(photo.imageUrl);
+    }
 
     await this.prisma.photo.delete({
       where: { id },

@@ -14,6 +14,7 @@ export class QueryNewsDto {
 
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   published?: boolean;
 
   @IsOptional()

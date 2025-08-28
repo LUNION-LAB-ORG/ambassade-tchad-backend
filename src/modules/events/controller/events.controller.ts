@@ -96,8 +96,7 @@ export class EventsController {
   }
 
   @Get('/stats')
-  @UseGuards(JwtAuthGuard, UserRolesGuard)
-  @UserRoles(Role.ADMIN, Role.CHEF_SERVICE, Role.CONSUL, Role.AGENT)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Récupérer les statistiques des événements' })
   @ApiResponse({ status: 200, description: 'Statistiques des événements récupérées avec succès.' })
   getStats() {

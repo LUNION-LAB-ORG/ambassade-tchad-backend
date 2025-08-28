@@ -1,11 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/services/prisma.service';
 import { CreateEventsDto } from '../dto/create-events.dto';
 import { UpdateEventsDto } from '../dto/update-events.dto';
 import { Prisma, Evenement as EventModel } from '@prisma/client';
 import { QueryResponseDto } from 'src/common/dto/query-response.dto';
 import { QueryEventsDto } from '../dto/query-events.dto';
-import { GenerateConfigService } from 'src/common/services/generate-config.service';
+import { processUploadedFiles } from 'src/common/utils/processUploadedFiles';
+import { deleteFilesFromSystem } from 'src/common/utils/deleteFilesFromSystem';
 
 @Injectable()
 export class EventsService {
@@ -18,7 +19,7 @@ export class EventsService {
   ) {
 
     const imageUrls = files.length > 0
-      ? await this.processUploadedFiles(files)
+      ? await processUploadedFiles(files, './uploads/events')
       : [];
 
     return this.prisma.evenement.create({
@@ -38,34 +39,29 @@ export class EventsService {
       }
     });
   }
-
-  private async processUploadedFiles(files: Express.Multer.File[]): Promise<string[]> {
-    const fileMap: Record<string, string> = {};
-
-    files.forEach((file, i) => {
-      fileMap[`image_${i}`] = file.path;
-    });
-
-    const compressedPaths = await GenerateConfigService.compressImages(
-      fileMap,
-      './uploads/events',
-      { quality: 75, width: 1280, height: 720, fit: 'inside' },
-      true
-    );
-
-    return Object.values(compressedPaths);
-  }
-
   async findAllWithFilters(filters: QueryEventsDto): Promise<QueryResponseDto<EventModel>> {
     const page = filters.page ?? 1
     const limit = filters.limit ?? 10
     const skip = limit * (page - 1)
     const where: Prisma.EvenementWhereInput = {}
+
     if (filters.title) { where.title = { contains: filters.title, mode: 'insensitive' } }
+
     if (filters.authorId) { where.id = filters.authorId }
-    if (typeof filters.published === 'boolean') { where.published = filters.published }
-    if (filters.toDate) { where.createdAt = { lte: new Date(filters.toDate) } }
-    if (filters.fromDate) { where.createdAt = { gte: new Date(filters.fromDate) } }
+
+    if (filters.published) {
+      where.published = filters.published
+    }
+
+    if (filters.eventDate) { where.eventDate = { gte: new Date(filters.eventDate) } }
+
+    if (filters.fromDate && filters.toDate) {
+      where.createdAt = {
+        gte: new Date(filters.fromDate),
+        lte: new Date(filters.toDate)
+      }
+    }
+
     const [total_event, all_event] = await Promise.all([
       this.prisma.evenement.count({ where }),
       this.prisma.evenement.findMany({
@@ -139,26 +135,62 @@ export class EventsService {
   }
 
   async update(id: string, UpdateEventsDto: UpdateEventsDto, userId: string, files?: Express.Multer.File[]) {
-    const events = await this.findOne(id);
-    // Traitement des fichiers si présents
-    let imageUrls = events.imageUrl; // Garder les anciennes images
+    const event = await this.findOne(id);
+
+    // Récupérer les anciennes URLs d'images
+    const oldImageUrls = event.imageUrl || [];
+
+    let newImageUrls: string[] = [];
+
+    // Si de nouveaux fichiers sont fournis, on remplace TOUTES les images
     if (files && files.length > 0) {
-      const eventImageUrls = await this.processUploadedFiles(files);
-      imageUrls = [...imageUrls, ...eventImageUrls]; // Ajouter aux anciennes
+      console.log(`Mise à jour avec ${files.length} nouveaux fichiers`);
+      console.log('Fichiers reçus:', files.map(f => ({
+        originalname: f.originalname,
+        filename: f.filename,
+        path: f.path
+      })));
+
+      // Supprimer les anciens fichiers du système de fichiers
+      if (oldImageUrls.length > 0) {
+        await deleteFilesFromSystem(oldImageUrls);
+      }
+
+      // Traiter les nouveaux fichiers
+      newImageUrls = await processUploadedFiles(files, './uploads/events');
+    } else {
+      // Si aucun nouveau fichier, garder les anciens
+      newImageUrls = oldImageUrls;
     }
 
-    const events_new = this.prisma.evenement.update({
+    // Mettre à jour l'événement avec les nouvelles images
+    const updatedEvent = await this.prisma.evenement.update({
       where: { id },
       data: {
         ...UpdateEventsDto,
-        imageUrl: imageUrls
+        imageUrl: newImageUrls
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
-    return events_new;
+
+    return updatedEvent;
   }
 
   async remove(id: string, userId: string) {
     const event = await this.findOne(id);
+
+    // Supprimer les fichiers associés du système de fichiers
+    if (event.imageUrl && event.imageUrl.length > 0) {
+      await deleteFilesFromSystem(event.imageUrl);
+    }
 
     await this.prisma.evenement.delete({
       where: { id },
@@ -166,4 +198,5 @@ export class EventsService {
 
     return { message: "Événement supprimé avec succès." };
   }
+
 }

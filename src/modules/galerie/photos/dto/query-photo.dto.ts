@@ -5,7 +5,7 @@ import { IsInt, Min, Max } from 'class-validator';
 
 export class QueryPhotoDto {
   @IsOptional()
-  @IsString()  
+  @IsString()
   title?: string;
 
   @IsOptional()
@@ -19,7 +19,6 @@ export class QueryPhotoDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
-
 
   @ApiProperty({
     description: "Numéro de la page à récupérer",

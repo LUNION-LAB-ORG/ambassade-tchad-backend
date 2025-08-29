@@ -73,7 +73,10 @@ export class FinancialReportService {
     }
 
     async getRevenueByService(payments: Payment[]): Promise<RevenueByService[]> {
-        const serviceIds = [...new Set(payments.map(p => p.requestId))];
+        const serviceIds = [...new Set(payments.map(p => {
+            if (p.requestId) return p.requestId;
+            return null;
+        }).filter(id => id !== null))];
 
         const requests = await this.prisma.request.findMany({
             where: { id: { in: serviceIds } },
@@ -83,7 +86,7 @@ export class FinancialReportService {
         const serviceMap = new Map<string, ServiceType>(requests.map(req => [req.id, req.serviceType]));
 
         const aggregation = payments.reduce((acc, p) => {
-            const serviceType = serviceMap.get(p.requestId);
+            const serviceType = serviceMap.get(p.requestId!);
             if (!serviceType) return acc;
 
             if (!acc[serviceType]) {

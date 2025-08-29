@@ -14,9 +14,7 @@ export class NewsService {
 
   async create(createNewsDto: CreateNewsDto, authorId: string, files: Express.Multer.File[] = []) {
     // Traitement des fichiers avec la fonction utilitaire
-    const imageUrls = files.length > 0
-      ? await processUploadedFiles(files, './uploads/news')
-      : [];
+    const imageUrls = await processUploadedFiles(files, './uploads/news');
 
     return this.prisma.news.create({
       data: {

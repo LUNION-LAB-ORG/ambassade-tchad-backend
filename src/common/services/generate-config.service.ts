@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { GenerateDataService } from "./generate-data.service";
-import { v4 as uuidv4 } from 'uuid';
 import * as sharp from 'sharp';
 import * as fs from 'fs';
 
@@ -30,7 +29,7 @@ export class GenerateConfigService {
         return imageConfig;
     }
 
-   
+
     static generateConfigMultipleImageUpload(destination: string, name?: string) {
         return {
             storage: diskStorage({
@@ -73,7 +72,7 @@ export class GenerateConfigService {
 
 
     static async compressImages(
-        fileMap: Record<string, string>, // <-- entrée modifiée
+        fileMap: Record<string, string>,
         outputDir?: string,
         opts: {
             quality?: number;
@@ -87,7 +86,7 @@ export class GenerateConfigService {
                 fit: 'inside',
             },
         deleteOriginal: boolean = false
-    ): Promise<Record<string, string>> { // <-- sortie modifiée
+    ): Promise<Record<string, string>> {
         const compressedPaths: Record<string, string> = {};
         const supportedExts = ['.jpg', '.jpeg', '.png', '.webp'];
         if (!fileMap || Object.keys(fileMap).length === 0) return compressedPaths;
@@ -97,12 +96,13 @@ export class GenerateConfigService {
                 if (!supportedExts.includes(ext)) continue;
 
                 let originalFilename = "";
+
                 if (path.includes("\\")) {
                     originalFilename = path.split("\\",).pop() ?? 'image';
                 } else {
                     originalFilename = path.split("/",).pop() ?? 'image';
                 }
-                
+
                 const [nameWithoutExt] = originalFilename.split(ext);
 
                 let finalFilename = originalFilename;

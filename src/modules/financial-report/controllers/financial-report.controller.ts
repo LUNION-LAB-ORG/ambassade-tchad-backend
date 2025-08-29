@@ -1,8 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { FinancialReportService } from '../services/financial-report.service';
 import { ApiTags, ApiQuery, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GetReportDto } from '../dtos/get-report.dto';
 import { FinancialReportResponseDto } from '../types/report-response.type';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 
 @ApiTags('Rapports Financiers')
 @Controller('financial-reports')
@@ -10,6 +11,7 @@ export class FinancialReportController {
     constructor(private readonly financialReportService: FinancialReportService) { }
 
     @Get()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
         summary: 'Générer un rapport financier complet',
         description:
@@ -42,6 +44,8 @@ export class FinancialReportController {
     }
 
     @Get('revenue/total')
+    @UseGuards(JwtAuthGuard)
+
     @ApiOperation({
         summary: 'Obtenir le total des revenus',
         description: 'Calcule le total des revenus pour la période spécifiée.',
@@ -67,6 +71,7 @@ export class FinancialReportController {
     }
 
     @Get('expenses/total')
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
         summary: 'Obtenir le total des dépenses',
         description: 'Calcule le total des dépenses pour la période spécifiée.',
@@ -90,7 +95,4 @@ export class FinancialReportController {
     async getTotalExpenses(@Query() query: GetReportDto): Promise<number> {
         return this.financialReportService.getTotalExpenses(query.period, query.year, query.month, query.quarter);
     }
-
-    // Autres endpoints pour les rapports spécifiques...
-    // Par exemple, pour les transactions, les revenus par service, etc.
 }

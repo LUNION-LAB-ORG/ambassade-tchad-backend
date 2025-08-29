@@ -18,9 +18,7 @@ export class EventsService {
     files: Express.Multer.File[] = []
   ) {
 
-    const imageUrls = files.length > 0
-      ? await processUploadedFiles(files, './uploads/events')
-      : [];
+    const imageUrls = await processUploadedFiles(files, './uploads/events');
 
     return this.prisma.evenement.create({
       data: {

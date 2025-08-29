@@ -4,6 +4,8 @@ import { GenerateConfigService } from "../services/generate-config.service";
  * Traiter les fichiers téléchargés
  */
 export async function processUploadedFiles(files: Express.Multer.File[], path: string): Promise<string[]> {
+    if (files.length === 0) return [];
+    return files.map(file => file.path);
     const fileMap: Record<string, string> = {};
     const timestamp = Date.now();
 

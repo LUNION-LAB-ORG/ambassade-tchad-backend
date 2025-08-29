@@ -225,6 +225,10 @@ model Request {
   // Coût de la demande au moment de la soumission (pour la traçabilité financière)
   amount Float
 
+  paied Boolean @default(false)
+
+  paied_at DateTime?
+
   // Relations 1-à-N
   documents     Document[]
   statusHistory RequestStatusHistory[]
@@ -304,18 +308,19 @@ model RequestStatusHistory {
 model Payment {
   id String @id @default(uuid())
 
-  // Liaison 1-à-1 avec la Request (chaque paiement est pour une Request unique pour simplifier)
-  requestId String  @unique
-  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  // Liaison 1-à-1 avec la Request (chaque paiement est pour une demande unique pour simplifier)
+  requestId String?  @unique
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   amount         Float
   paymentDate    DateTime      @default(now())
   method         PaymentMethod
+  source         String?
   transactionRef String?       @unique
 
   // Qui a enregistré ce paiement
-  recordedById String
-  recordedBy   User   @relation("PaymentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+  recordedById String?
+  recordedBy   User?   @relation("PaymentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
